@@ -1,102 +1,123 @@
 package main
 
 import (
-	"flag"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"observer/internal/audit"
-	"observer/internal/config"
-	"observer/internal/daemon"
 	"os"
+	"sync"
+	"time"
 )
 
-func main() {
-	if len(os.Args) < 2 {
-		printRootUsage()
-		os.Exit(1)
-	}
-
-	if os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "help" {
-		printRootUsage()
-		return
-	}
-
-	cmdArg := os.Args[1]
-	switch cmdArg {
-	// NOTE: Run the daemon in the background when the project is ready for deployment
-	case "init":
-		initCmd := flag.NewFlagSet("init", flag.ExitOnError)
-		resetConfig := initCmd.Bool("reset-config", false, "Overwrite existing config file")
-		resetDB := initCmd.Bool("reset-db", false, "Delete and recreate the database")
-		_ = initCmd.Parse(os.Args[2:])
-
-		if !*resetConfig && !*resetDB {
-			err := config.InitConfigDir(*resetConfig)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			configDir, err := config.ConfigDir()
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			dbPath := configDir + "/observer.db"
-			err = audit.InitDatabase(dbPath, *resetDB)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-		} else {
-			if *resetConfig {
-				err := config.InitConfigDir(*resetConfig)
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-
-			configDir, err := config.ConfigDir()
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			dbPath := configDir + "/observer.db"
-			if *resetDB {
-				err = audit.InitDatabase(dbPath, *resetDB)
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-		}
-
-	case "start":
-		startCmd := flag.NewFlagSet("start", flag.ExitOnError)
-		_ = startCmd.Parse(os.Args[2:])
-
-		hosts, err := config.LoadConfigFile()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = daemon.RunDaemon(hosts)
-		if err != nil {
-			log.Fatal(err)
-		}
-	case "stop":
-	default:
-		printRootUsage()
-		os.Exit(1)
-	}
-
+type ClientRequest struct {
+	HostName  string              `json:"host"`
+	OpenAPI   *audit.OpenAPIDoc   `json:"openapi,omitempty"`
+	HostRules *audit.HostRulesDoc `json:"rules,omitempty"`
 }
 
-func printRootUsage() {
-	fmt.Println("Usage: observer <command> [options]")
-	fmt.Println()
-	fmt.Println("Commands:")
-	fmt.Println("  init      Initialize the config directory and default configuration")
-	fmt.Println("  start     Start the observer daemon")
-	fmt.Println("  stop      Stop the observer daemon")
-	fmt.Println()
-	fmt.Println("Run 'observer <command> -h' for command-specific help")
+type ServerState struct {
+	mu      sync.RWMutex
+	clients map[string]RegisteredClient
+}
+
+type RegisteredClient struct {
+	OpenAPI   *audit.OpenAPIDoc
+	HostRules *audit.HostRulesDoc
+}
+
+func main() {
+	mux := http.NewServeMux()
+
+	serverState := &ServerState{
+		clients: make(map[string]RegisteredClient),
+	}
+
+	server := &http.Server{
+		Addr:         observerAddress(),
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  10 * time.Second,
+	}
+
+	mux.HandleFunc("POST /register-client", func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "failed to read client registration body", http.StatusBadRequest)
+			return
+		}
+
+		var client ClientRequest
+		if err := json.Unmarshal(body, &client); err != nil {
+			http.Error(w, "invalid client registration JSON", http.StatusBadRequest)
+			return
+		}
+
+		_, ok := serverState.GetClient(client.HostName)
+		if !ok {
+			serverState.RegisterClient(client)
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mux.HandleFunc("POST /events", func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "failed to read observer event", http.StatusBadRequest)
+			return
+		}
+
+		var event any
+		if err := json.Unmarshal(body, &event); err != nil {
+			http.Error(w, "invalid observer event JSON", http.StatusBadRequest)
+			return
+		}
+
+		pretty, err := json.MarshalIndent(event, "", "    ")
+		if err != nil {
+			http.Error(w, "failed to pretty print observer event", http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Println("---- OBSERVER EVENT RECEIVED ----")
+		fmt.Println(string(pretty))
+
+		w.WriteHeader(http.StatusAccepted)
+	})
+
+	fmt.Printf("Server is running on http://localhost%s\n", observerAddress())
+	err := server.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Server failed to start: %v", err)
+	}
+}
+
+func (s *ServerState) RegisterClient(client ClientRequest) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.clients[client.HostName] = RegisteredClient{
+		OpenAPI:   client.OpenAPI,
+		HostRules: client.HostRules,
+	}
+}
+
+func (s *ServerState) GetClient(clientName string) (RegisteredClient, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	val, ok := s.clients[clientName]
+	return val, ok
+}
+
+func observerAddress() string {
+	if addr := os.Getenv("API_OBSERVER_ADDR"); addr != "" {
+		return addr
+	}
+
+	return ":24899"
 }
