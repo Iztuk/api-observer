@@ -28,6 +28,32 @@ type RegisteredClient struct {
 	HostRules *audit.HostRulesDoc
 }
 
+type HTTPExchangeEvent struct {
+	HostName string        `json:"host"`
+	Request  *RequestCopy  `json:"request,omitempty"`
+	Response *ResponseCopy `json:"response,omitempty"`
+	Failure  *FailureCopy  `json:"failure,omitempty"`
+}
+
+type RequestCopy struct {
+	Method string      `json:"method"`
+	URL    string      `json:"url"`
+	Header http.Header `json:"header"`
+	Body   []byte      `json:"body"`
+}
+
+type ResponseCopy struct {
+	Request    *RequestCopy `json:"request"`
+	StatusCode int          `json:"status_code"`
+	Headers    http.Header  `json:"headers"`
+	Body       []byte       `json:"body"`
+}
+
+type FailureCopy struct {
+	Request *RequestCopy `json:"request"`
+	Error   string       `json:"error"`
+}
+
 func main() {
 	mux := http.NewServeMux()
 
@@ -71,20 +97,24 @@ func main() {
 			return
 		}
 
-		var event any
+		var event HTTPExchangeEvent
 		if err := json.Unmarshal(body, &event); err != nil {
 			http.Error(w, "invalid observer event JSON", http.StatusBadRequest)
 			return
 		}
 
-		pretty, err := json.MarshalIndent(event, "", "    ")
-		if err != nil {
-			http.Error(w, "failed to pretty print observer event", http.StatusInternalServerError)
+		_, ok := serverState.GetClient(event.HostName)
+		if !ok {
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
-		fmt.Println("---- OBSERVER EVENT RECEIVED ----")
-		fmt.Println(string(pretty))
+		pretty, err := json.MarshalIndent(event, "", "    ")
+		if err != nil {
+			http.Error(w, "failed to marshal json", http.StatusInternalServerError)
+		}
+
+		fmt.Println(pretty)
 
 		w.WriteHeader(http.StatusAccepted)
 	})
@@ -104,6 +134,8 @@ func (s *ServerState) RegisterClient(client ClientRequest) {
 		OpenAPI:   client.OpenAPI,
 		HostRules: client.HostRules,
 	}
+
+	log.Printf("New client registered: %s\n", client.HostName)
 }
 
 func (s *ServerState) GetClient(clientName string) (RegisteredClient, bool) {
