@@ -106,7 +106,6 @@ func (s *SQLiteStore) SaveAuditResult(ctx context.Context, job Job, jobID string
 		meta.Method,
 		meta.Path,
 		meta.Query,
-		meta.Upstream,
 		meta.Status,
 		meta.Timestamp.Format(time.RFC3339Nano),
 		meta.DurationMs,

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +10,7 @@ import (
 	"net/http"
 	"observer/internal/audit"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -109,12 +112,11 @@ func main() {
 			return
 		}
 
-		pretty, err := json.MarshalIndent(event, "", "    ")
+		err = ProcessHTTPEvent(r.Context(), event)
 		if err != nil {
-			http.Error(w, "failed to marshal json", http.StatusInternalServerError)
+			http.Error(w, "could not process event", http.StatusInternalServerError)
+			return
 		}
-
-		fmt.Println(pretty)
 
 		w.WriteHeader(http.StatusAccepted)
 	})
@@ -124,6 +126,90 @@ func main() {
 	if err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server failed to start: %v", err)
 	}
+}
+
+func ProcessHTTPEvent(ctx context.Context, event HTTPExchangeEvent) error {
+	if strings.TrimSpace(event.HostName) == "" {
+		return fmt.Errorf("http exchange event missing host")
+	}
+
+	eventCount := 0
+
+	if event.Request != nil {
+		eventCount++
+	}
+
+	if event.Response != nil {
+		eventCount++
+	}
+
+	if event.Failure != nil {
+		eventCount++
+	}
+
+	if eventCount == 0 {
+		return fmt.Errorf("http exchange event has no request, response, or failure payload")
+	}
+
+	if eventCount > 1 {
+		return fmt.Errorf("http exchange event must contain only one payload type")
+	}
+
+	switch {
+	case event.Request != nil:
+		return processRequestEvent(ctx, event.HostName, event.Request)
+
+	case event.Response != nil:
+		return processResponseEvent(ctx, event.HostName, event.Response)
+
+	case event.Failure != nil:
+		return processFailureEvent(ctx, event.HostName, event.Failure)
+
+	default:
+		return fmt.Errorf("unsupported http exchange event")
+	}
+}
+
+func processRequestEvent(ctx context.Context, host string, reqCopy *RequestCopy) error {
+	if reqCopy == nil {
+		return fmt.Errorf("request event missing request")
+	}
+
+	req, err := http.NewRequest(
+		reqCopy.Method,
+		reqCopy.URL,
+		bytes.NewReader(reqCopy.Body),
+	)
+	if err != nil {
+		return err
+	}
+
+	req.Header = reqCopy.Header.Clone()
+	req.ContentLength = int64(len(reqCopy.Body))
+
+	job := audit.NewRequestJob(req, host, time.Now().UTC())
+
+	job.Body = reqCopy.Body
+
+	data, err := json.MarshalIndent(job, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(data))
+
+	_ = ctx
+	return nil
+}
+
+func processResponseEvent(ctx context.Context, host string, resCopy *ResponseCopy) error {
+
+	return nil
+}
+
+func processFailureEvent(ctx context.Context, host string, failCopy *FailureCopy) error {
+
+	return nil
 }
 
 func (s *ServerState) RegisterClient(client ClientRequest) {

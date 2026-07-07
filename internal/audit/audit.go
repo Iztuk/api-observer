@@ -25,7 +25,6 @@ type Metadata struct {
 	Method     string
 	Path       string
 	Query      string
-	Upstream   string
 	Status     int
 	Timestamp  time.Time
 	DurationMs int64
@@ -68,13 +67,8 @@ type CapturingBody struct {
 //   - add a configurable max body size
 //   - move body capture to the worker layer
 //   - or use a streaming (io.TeeReader) approach to avoid full buffering
-func NewRequestJob(r *http.Request, upstream string, start time.Time) *RequestJob {
+func NewRequestJob(r *http.Request, host string, start time.Time) *RequestJob {
 	requestID := getOrCreateRequestID(r)
-
-	host := r.Header.Get("X-Original-Host")
-	if host == "" {
-		host = r.Host
-	}
 
 	return &RequestJob{
 		Type: RequestJobType,
@@ -84,7 +78,6 @@ func NewRequestJob(r *http.Request, upstream string, start time.Time) *RequestJo
 			Method:    r.Method,
 			Path:      r.URL.Path,
 			Query:     r.URL.RawQuery,
-			Upstream:  upstream,
 			Timestamp: start,
 		},
 		Headers: r.Header.Clone(),
@@ -113,7 +106,6 @@ func NewResponseJob(r *http.Response, upstream string) *ResponseJob {
 			Method:     r.Request.Method,
 			Path:       r.Request.URL.Path,
 			Query:      r.Request.URL.RawQuery,
-			Upstream:   upstream,
 			Status:     r.StatusCode,
 			Timestamp:  time.Now().UTC(),
 			DurationMs: duration,
@@ -151,7 +143,6 @@ func NewFailureJob(r *http.Request, upstream string, err error) *FailureJob {
 			Method:     r.Method,
 			Path:       r.URL.Path,
 			Query:      r.URL.RawQuery,
-			Upstream:   upstream,
 			Status:     status,
 			DurationMs: duration,
 			Timestamp:  time.Now().UTC(),
