@@ -27,7 +27,13 @@ func main() {
 	engine := audit.NewRuleEngine(registry)
 
 	queue := audit.NewQueue(observerQueueSize())
-	wg := queue.StartWorkers(ctx, observerWorkerCount(), logger, engine)
+	store, err := audit.NewJSONLogStore()
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	defer store.Close()
+
+	wg := queue.StartWorkers(ctx, observerWorkerCount(), logger, engine, store)
 
 	ingestHandler := ingest.NewHandler(registry, queue, engine)
 

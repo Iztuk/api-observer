@@ -18,7 +18,7 @@ import (
 type Job interface {
 	JobType() JobType
 	Metadata() Metadata
-	Process(c context.Context, e *RuleEngine) error
+	Process(c context.Context, e *RuleEngine, s *JSONLogStore) error
 }
 
 type Queue struct {
@@ -170,7 +170,7 @@ func (r *RequestJob) Metadata() Metadata {
 	return r.Meta
 }
 
-func (r *RequestJob) Process(ctx context.Context, engine *RuleEngine) error {
+func (r *RequestJob) Process(ctx context.Context, engine *RuleEngine, store *JSONLogStore) error {
 	jobID := uuid.NewString()
 
 	findings, err := engine.Evaluate(r, jobID)
@@ -182,8 +182,7 @@ func (r *RequestJob) Process(ctx context.Context, engine *RuleEngine) error {
 		return nil
 	}
 
-	fmt.Println("These are the findings:\n", findings)
-	return DatabaseStore.SaveAuditResult(ctx, r, jobID, findings)
+	return store.SaveAuditResult(findings)
 }
 
 func (r *ResponseJob) JobType() JobType {
@@ -194,7 +193,7 @@ func (r *ResponseJob) Metadata() Metadata {
 	return r.Meta
 }
 
-func (r *ResponseJob) Process(ctx context.Context, engine *RuleEngine) error {
+func (r *ResponseJob) Process(ctx context.Context, engine *RuleEngine, store *JSONLogStore) error {
 	jobID := uuid.NewString()
 
 	findings, err := engine.Evaluate(r, jobID)
@@ -206,7 +205,7 @@ func (r *ResponseJob) Process(ctx context.Context, engine *RuleEngine) error {
 		return nil
 	}
 
-	return DatabaseStore.SaveAuditResult(ctx, r, jobID, findings)
+	return store.SaveAuditResult(findings)
 }
 
 func (r *FailureJob) JobType() JobType {
@@ -217,7 +216,7 @@ func (r *FailureJob) Metadata() Metadata {
 	return r.Meta
 }
 
-func (r *FailureJob) Process(ctx context.Context, engine *RuleEngine) error {
+func (r *FailureJob) Process(ctx context.Context, engine *RuleEngine, store *JSONLogStore) error {
 	jobID := uuid.NewString()
 
 	findings, err := engine.Evaluate(r, jobID)
@@ -229,7 +228,7 @@ func (r *FailureJob) Process(ctx context.Context, engine *RuleEngine) error {
 		return nil
 	}
 
-	return DatabaseStore.SaveAuditResult(ctx, r, jobID, findings)
+	return store.SaveAuditResult(findings)
 }
 
 func NewQueue(size int) *Queue {
@@ -258,7 +257,7 @@ func (q *Queue) TryEnqueue(job Job) bool {
 	}
 }
 
-func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger, engine *RuleEngine) *sync.WaitGroup {
+func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger, engine *RuleEngine, store *JSONLogStore) *sync.WaitGroup {
 	var wg sync.WaitGroup
 
 	for i := 0; i < count; i++ {
@@ -280,7 +279,7 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger,
 						}
 					}()
 
-					if err := ProcessJob(ctx, job, engine); err != nil {
+					if err := ProcessJob(ctx, job, engine, store); err != nil {
 						logger.Printf("audit worker %d failed to process job: %v", workerID, err)
 					}
 				}()
@@ -293,12 +292,12 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger,
 	return &wg
 }
 
-func ProcessJob(ctx context.Context, job Job, engine *RuleEngine) error {
+func ProcessJob(ctx context.Context, job Job, engine *RuleEngine, store *JSONLogStore) error {
 	if job == nil {
 		return fmt.Errorf("nil audit job")
 	}
 
-	return job.Process(ctx, engine)
+	return job.Process(ctx, engine, store)
 }
 
 func (q *Queue) Close() {
