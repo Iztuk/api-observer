@@ -3,15 +3,12 @@ package audit
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
 
@@ -244,13 +241,4 @@ CREATE TABLE IF NOT EXISTS findings (
 	}
 
 	return nil
-}
-
-func newUUID() string {
-	return uuid.NewString()
-}
-
-func marshalHeaders(h http.Header) (string, error) {
-	jsonData, err := json.Marshal(h)
-	return string(jsonData), err
 }

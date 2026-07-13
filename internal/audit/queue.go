@@ -279,6 +279,10 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger,
 						}
 					}()
 
+					if err := store.SaveJob(job, uuid.NewString()); err != nil {
+						logger.Printf("audit worker %d failed to save job: %v", workerID, err)
+					}
+
 					if err := ProcessJob(ctx, job, engine, store); err != nil {
 						logger.Printf("audit worker %d failed to process job: %v", workerID, err)
 					}
