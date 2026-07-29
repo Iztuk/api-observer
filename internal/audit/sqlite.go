@@ -3,15 +3,12 @@ package audit
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
 
@@ -106,10 +103,8 @@ func (s *SQLiteStore) SaveAuditResult(ctx context.Context, job Job, jobID string
 		meta.Method,
 		meta.Path,
 		meta.Query,
-		meta.Upstream,
 		meta.Status,
 		meta.Timestamp.Format(time.RFC3339Nano),
-		meta.DurationMs,
 		headers,
 		body,
 		errStr,
@@ -246,13 +241,4 @@ CREATE TABLE IF NOT EXISTS findings (
 	}
 
 	return nil
-}
-
-func newUUID() string {
-	return uuid.NewString()
-}
-
-func marshalHeaders(h http.Header) (string, error) {
-	jsonData, err := json.Marshal(h)
-	return string(jsonData), err
 }

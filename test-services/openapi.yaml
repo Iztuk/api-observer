@@ -1,107 +1,79 @@
 openapi: 3.0.3
+
 info:
-  title: Observer Test Service
+  title: Observer Example API
+  description: Example HTTP API instrumented with the Go Observer SDK.
   version: 1.0.0
-  description: Simple service for testing Observer request, response, timeout, and upstream failure behavior.
 
 servers:
-  - url: http://localhost:8081
-    description: Local test upstream
+  - url: http://localhost:8080
+    description: Local development server
 
 paths:
   /health:
     get:
-      operationId: GetHealth
-      summary: Health check
+      operationId: getHealth
+      summary: Check application health
+      tags:
+        - System
       responses:
         "200":
-          description: Service is healthy
+          description: Application is healthy
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
 
-  /leaky-user:
+  /hello:
     get:
-      operationId: GetLeakyUser
-      summary: Test endpoint that intentionally returns sensitive fields
+      operationId: getHello
+      summary: Return a greeting
+      tags:
+        - Example
       responses:
         "200":
-          description: Leaky user response for testing custom body field rules
+          description: Greeting returned successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LeakyUserResponse"
+                $ref: "#/components/schemas/HelloResponse"
 
-  /users:
-    get:
-      operationId: ListUsers
-      summary: List users
-      responses:
-        "200":
-          description: List of users
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/User"
-
+  /echo:
     post:
-      operationId: CreateUser
-      summary: Create user
+      operationId: postEcho
+      summary: Echo a supplied message
+      tags:
+        - Example
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateUserRequest"
+              $ref: "#/components/schemas/EchoRequest"
       responses:
-        "201":
-          description: User created
+        "200":
+          description: Message echoed successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
+                $ref: "#/components/schemas/EchoResponse"
+
         "400":
-          description: Invalid request body
+          description: Request body contained invalid JSON
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /profiles:
-    get:
-      operationId: ListProfiles
-      summary: List profiles
-      responses:
-        "200":
-          description: List of profiles
+        "415":
+          description: Unsupported content type
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Profile"
+                $ref: "#/components/schemas/ErrorResponse"
 
-    post:
-      operationId: CreateProfile
-      summary: Create profile with nested values
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateProfileRequest"
-      responses:
-        "201":
-          description: Profile created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Profile"
-        "400":
-          description: Invalid request body
+        "422":
+          description: Message was missing or invalid
           content:
             application/json:
               schema:
@@ -109,226 +81,125 @@ paths:
 
   /users/{id}:
     get:
-      operationId: GetUser
-      summary: Get user by ID
+      operationId: getUser
+      summary: Return an example user
+      tags:
+        - Users
       parameters:
         - name: id
           in: path
           required: true
+          description: Numeric user identifier
           schema:
-            type: string
+            type: integer
+            minimum: 1
       responses:
         "200":
-          description: User found
+          description: User returned successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
-        "404":
-          description: User not found
+                $ref: "#/components/schemas/UserResponse"
+
+        "400":
+          description: Invalid user ID
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-    delete:
-      operationId: DeleteUser
-      summary: Delete user by ID
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "204":
-          description: User deleted
-
-  /timeout:
+  /fail:
     get:
-      operationId: TimeoutTest
-      summary: Endpoint intentionally slower than the proxy timeout
+      operationId: getFailure
+      summary: Return an intentional server error
+      description: Used to test response auditing and error findings.
+      tags:
+        - Testing
       responses:
-        "200":
-          description: Slow response completed
+        "500":
+          description: Intentional test failure
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MessageResponse"
-
-  /reset:
-    get:
-      operationId: ResetConnectionTest
-      summary: Endpoint that closes the connection without sending a response
-      responses:
-        "502":
-          description: Proxy may convert upstream connection reset into a bad gateway response
-          content:
-            text/plain:
-              schema:
-                type: string
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
     HealthResponse:
       type: object
+      additionalProperties: false
       required:
         - status
       properties:
         status:
           type: string
+          enum:
+            - ok
           example: ok
 
-    User:
+    HelloResponse:
       type: object
-      required:
-        - id
-        - email
-        - displayName
-      properties:
-        id:
-          type: string
-        email:
-          type: string
-        displayName:
-          type: string
-
-    LeakyUserResponse:
-      type: object
-      required:
-        - id
-        - email
-        - displayName
-        - passwordHash
-        - tokens
-      properties:
-        id:
-          type: string
-        email:
-          type: string
-        displayName:
-          type: string
-        passwordHash:
-          type: string
-        tokens:
-          $ref: "#/components/schemas/TokenResponse"
-
-    TokenResponse:
-      type: object
-      required:
-        - accessToken
-        - refreshToken
-      properties:
-        accessToken:
-          type: string
-        refreshToken:
-          type: string
-
-    CreateUserRequest:
-      type: object
-      required:
-        - email
-        - displayName
-      properties:
-        email:
-          type: string
-          format: email
-        displayName:
-          type: string
-
-    Profile:
-      type: object
-      required:
-        - id
-        - userId
-        - contact
-        - preferences
-      properties:
-        id:
-          type: string
-        userId:
-          type: string
-        contact:
-          $ref: "#/components/schemas/ContactInfo"
-        preferences:
-          $ref: "#/components/schemas/UserPreferences"
-
-    CreateProfileRequest:
-      type: object
-      required:
-        - userId
-        - contact
-        - preferences
-      properties:
-        userId:
-          type: string
-        contact:
-          $ref: "#/components/schemas/ContactInfo"
-        preferences:
-          $ref: "#/components/schemas/UserPreferences"
-
-    ContactInfo:
-      type: object
-      required:
-        - email
-        - address
-      properties:
-        email:
-          type: string
-          format: email
-        phone:
-          type: string
-        address:
-          $ref: "#/components/schemas/Address"
-
-    Address:
-      type: object
-      required:
-        - city
-        - state
-        - zipCode
-      properties:
-        city:
-          type: string
-        state:
-          type: string
-        zipCode:
-          type: string
-
-    UserPreferences:
-      type: object
-      required:
-        - theme
-        - notifications
-      properties:
-        theme:
-          type: string
-        notifications:
-          $ref: "#/components/schemas/NotificationPreferences"
-
-    NotificationPreferences:
-      type: object
-      required:
-        - email
-        - sms
-      properties:
-        email:
-          type: boolean
-        sms:
-          type: boolean
-
-    MessageResponse:
-      type: object
+      additionalProperties: false
       required:
         - message
       properties:
         message:
           type: string
+          example: Hello from the observed API
+
+    EchoRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          example: hello observer
+
+    EchoResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+        - timestamp
+      properties:
+        message:
+          type: string
+          example: hello observer
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-07-29T13:00:00Z"
+
+    UserResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          example: 42
+        name:
+          type: string
+          example: User 42
+        email:
+          type: string
+          format: email
+          example: user42@example.com
 
     ErrorResponse:
       type: object
+      additionalProperties: false
       required:
         - error
       properties:
         error:
           type: string
+          example: invalid request

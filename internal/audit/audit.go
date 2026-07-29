@@ -20,15 +20,13 @@ const (
 )
 
 type Metadata struct {
-	RequestID  string
-	Host       string
-	Method     string
-	Path       string
-	Query      string
-	Upstream   string
-	Status     int
-	Timestamp  time.Time
-	DurationMs int64
+	RequestID string
+	Host      string
+	Method    string
+	Path      string
+	Query     string
+	Status    int
+	Timestamp time.Time
 }
 
 type RequestJob struct {
@@ -68,13 +66,8 @@ type CapturingBody struct {
 //   - add a configurable max body size
 //   - move body capture to the worker layer
 //   - or use a streaming (io.TeeReader) approach to avoid full buffering
-func NewRequestJob(r *http.Request, upstream string, start time.Time) *RequestJob {
+func NewRequestJob(r *http.Request, host string, start time.Time) *RequestJob {
 	requestID := getOrCreateRequestID(r)
-
-	host := r.Header.Get("X-Original-Host")
-	if host == "" {
-		host = r.Host
-	}
 
 	return &RequestJob{
 		Type: RequestJobType,
@@ -84,45 +77,31 @@ func NewRequestJob(r *http.Request, upstream string, start time.Time) *RequestJo
 			Method:    r.Method,
 			Path:      r.URL.Path,
 			Query:     r.URL.RawQuery,
-			Upstream:  upstream,
 			Timestamp: start,
 		},
 		Headers: r.Header.Clone(),
 	}
 }
 
-func NewResponseJob(r *http.Response, upstream string) *ResponseJob {
+func NewResponseJob(r *http.Response, host string) *ResponseJob {
 	requestID := getOrCreateRequestID(r.Request)
-
-	var duration int64
-	start, err := time.Parse(time.RFC3339Nano, r.Request.Header.Get("X-Request-Timestamp"))
-	if err == nil {
-		duration = time.Since(start).Milliseconds()
-	}
-
-	host := r.Request.Header.Get("X-Original-Host")
-	if host == "" {
-		host = r.Request.Host
-	}
 
 	return &ResponseJob{
 		Type: ResponseJobType,
 		Meta: Metadata{
-			RequestID:  requestID,
-			Host:       host,
-			Method:     r.Request.Method,
-			Path:       r.Request.URL.Path,
-			Query:      r.Request.URL.RawQuery,
-			Upstream:   upstream,
-			Status:     r.StatusCode,
-			Timestamp:  time.Now().UTC(),
-			DurationMs: duration,
+			RequestID: requestID,
+			Host:      host,
+			Method:    r.Request.Method,
+			Path:      r.Request.URL.Path,
+			Query:     r.Request.URL.RawQuery,
+			Status:    r.StatusCode,
+			Timestamp: time.Now().UTC(),
 		},
 		Headers: r.Header.Clone(),
 	}
 }
 
-func NewFailureJob(r *http.Request, upstream string, err error) *FailureJob {
+func NewFailureJob(r *http.Request, host string, err error) *FailureJob {
 	requestID := getOrCreateRequestID(r)
 
 	status := http.StatusBadGateway
@@ -130,31 +109,16 @@ func NewFailureJob(r *http.Request, upstream string, err error) *FailureJob {
 		status = http.StatusGatewayTimeout
 	}
 
-	start, _ := time.Parse(time.RFC3339Nano, r.Header.Get("X-Request-Timestamp"))
-
-	var duration int64
-	start, parseErr := time.Parse(time.RFC3339Nano, r.Header.Get("X-Request-Timestamp"))
-	if parseErr == nil {
-		duration = time.Since(start).Milliseconds()
-	}
-
-	host := r.Header.Get("X-Original-Host")
-	if host == "" {
-		host = r.Host
-	}
-
 	return &FailureJob{
 		Type: FailureJobType,
 		Meta: Metadata{
-			RequestID:  requestID,
-			Host:       host,
-			Method:     r.Method,
-			Path:       r.URL.Path,
-			Query:      r.URL.RawQuery,
-			Upstream:   upstream,
-			Status:     status,
-			DurationMs: duration,
-			Timestamp:  time.Now().UTC(),
+			RequestID: requestID,
+			Host:      host,
+			Method:    r.Method,
+			Path:      r.URL.Path,
+			Query:     r.URL.RawQuery,
+			Status:    status,
+			Timestamp: time.Now().UTC(),
 		},
 		Error: err.Error(),
 	}

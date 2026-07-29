@@ -1,11 +1,8 @@
 package audit
 
 import (
-	"fmt"
-	"observer/internal/config"
-	"os"
-	"path/filepath"
 	"strings"
+	"sync"
 )
 
 type RuleID string
@@ -252,8 +249,32 @@ func NewRuleEngine(registry *ContractRegistry) *RuleEngine {
 }
 
 type ContractRegistry struct {
+	mu        sync.RWMutex
 	contracts map[string]OpenAPIDoc
 	rules     map[string]HostRulesDoc
+}
+
+func (r *ContractRegistry) RegisterHost(host string, openapi OpenAPIDoc, hostrules HostRulesDoc) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.contracts[host] = openapi
+	r.rules[host] = hostrules
+}
+
+func (r *ContractRegistry) HostExists(host string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if _, ok := r.contracts[host]; ok {
+		return true
+	}
+
+	if _, ok := r.rules[host]; ok {
+		return true
+	}
+
+	return false
 }
 
 func (r *ContractRegistry) HasContract(host string) bool {
@@ -406,55 +427,38 @@ func (r *ContractRegistry) ResolveSchemaRef(host, ref string) (*OpenAPISchema, b
 	return doc.ResolveSchemaRef(ref)
 }
 
-func NewContractRegistry(hosts map[string]config.Host) (*ContractRegistry, error) {
-	contracts := make(map[string]OpenAPIDoc)
-	rules := make(map[string]HostRulesDoc)
-
-	baseDir, err := os.UserConfigDir()
-	if err != nil {
-		return nil, err
-	}
-
-	configPath := filepath.Join(baseDir, "observer", "config.yaml")
-
-	for hostName, host := range hosts {
-		lowerHost := strings.ToLower(hostName)
-
-		if host.APIContractPath != "" {
-			contractPath := host.APIContractPath
-			if !filepath.IsAbs(contractPath) {
-				contractPath = filepath.Join(filepath.Dir(configPath), contractPath)
-			}
-
-			contract, err := LoadOpenAPIDocument(contractPath)
-			if err != nil {
-				return nil, fmt.Errorf("load api contract for host %q: %w", hostName, err)
-			}
-
-			contracts[lowerHost] = contract
-
-		}
-
-		if host.RulesContractPath != "" {
-			rulesPath := host.RulesContractPath
-			if !filepath.IsAbs(rulesPath) {
-				rulesPath = filepath.Join(filepath.Dir(configPath), rulesPath)
-			}
-
-			rulesDoc, err := LoadRulesDocument(rulesPath)
-			if err != nil {
-				return nil, fmt.Errorf("load rules file for host %q: %w", hostName, err)
-			}
-
-			rules[lowerHost] = rulesDoc
-		}
-
-	}
-
+func NewContractRegistry() *ContractRegistry {
 	return &ContractRegistry{
-		contracts: contracts,
-		rules:     rules,
-	}, nil
+		contracts: make(map[string]OpenAPIDoc),
+		rules:     make(map[string]HostRulesDoc),
+	}
+}
+
+func (r *ContractRegistry) DebugString() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var b strings.Builder
+
+	b.WriteString("ContractRegistry{\n")
+
+	b.WriteString("  contracts:\n")
+	for host := range r.contracts {
+		b.WriteString("    - ")
+		b.WriteString(host)
+		b.WriteString("\n")
+	}
+
+	b.WriteString("  rules:\n")
+	for host := range r.rules {
+		b.WriteString("    - ")
+		b.WriteString(host)
+		b.WriteString("\n")
+	}
+
+	b.WriteString("}")
+
+	return b.String()
 }
 
 func getRules() []Rule {
