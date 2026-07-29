@@ -38,12 +38,12 @@ type AuditJob struct {
 }
 
 func NewJSONLogStore() (*JSONLogStore, error) {
-	jobPath := os.Getenv("API_OBSERVER_JOB_LOG_STORE")
+	jobPath := os.Getenv("API_OBSERVER_JOB_LOG")
 	if jobPath == "" {
 		jobPath = "/var/log/observer/job.jsonl"
 	}
 
-	auditPath := os.Getenv("API_OBSERVER_FINDINGS_LOG_STORE")
+	auditPath := os.Getenv("API_OBSERVER_FINDINGS_LOG")
 	if auditPath == "" {
 		auditPath = "/var/log/observer/audit.jsonl"
 	}

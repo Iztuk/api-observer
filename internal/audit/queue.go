@@ -3,6 +3,7 @@ package audit
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -83,20 +84,20 @@ func (q *Queue) ProcessHTTPEvent(ctx context.Context, event HTTPExchangeEvent, e
 
 	switch {
 	case event.Request != nil:
-		return q.processRequestEvent(ctx, event.HostName, event.Request)
+		return q.processRequestEvent(event.HostName, event.Request)
 
 	case event.Response != nil:
-		return processResponseEvent(ctx, event.HostName, event.Response)
+		return q.processResponseEvent(event.HostName, event.Response)
 
 	case event.Failure != nil:
-		return processFailureEvent(ctx, event.HostName, event.Failure)
+		return q.processFailureEvent(event.HostName, event.Failure)
 
 	default:
 		return fmt.Errorf("unsupported http exchange event")
 	}
 }
 
-func (q *Queue) processRequestEvent(ctx context.Context, host string, reqCopy *RequestCopy) error {
+func (q *Queue) processRequestEvent(host string, reqCopy *RequestCopy) error {
 	if reqCopy == nil {
 		return fmt.Errorf("request event missing request")
 	}
@@ -124,7 +125,7 @@ func (q *Queue) processRequestEvent(ctx context.Context, host string, reqCopy *R
 	return nil
 }
 
-func processResponseEvent(ctx context.Context, host string, resCopy *ResponseCopy) error {
+func (q *Queue) processResponseEvent(host string, resCopy *ResponseCopy) error {
 	if resCopy == nil {
 		return fmt.Errorf("response event missing response")
 	}
@@ -154,10 +155,37 @@ func processResponseEvent(ctx context.Context, host string, resCopy *ResponseCop
 
 	job.Body = resCopy.Body
 
+	if ok := q.TryEnqueue(job); !ok {
+		return fmt.Errorf("failed to enqueue job: Request ID: %s", job.Meta.RequestID)
+	}
+
 	return nil
 }
 
-func processFailureEvent(ctx context.Context, host string, failCopy *FailureCopy) error {
+func (q *Queue) processFailureEvent(host string, failCopy *FailureCopy) error {
+	if failCopy == nil {
+		return fmt.Errorf("failure event missing request")
+	}
+
+	req, err := http.NewRequest(
+		failCopy.Request.Method,
+		failCopy.Request.URL,
+		bytes.NewReader(failCopy.Request.Body),
+	)
+	if err != nil {
+		return err
+	}
+
+	req.Header = failCopy.Request.Header.Clone()
+	req.ContentLength = int64(len(failCopy.Request.Body))
+
+	jobErr := errors.New(failCopy.Error)
+
+	job := NewFailureJob(req, host, jobErr)
+
+	if ok := q.TryEnqueue(job); !ok {
+		return fmt.Errorf("failed to enqueue job: Request ID: %s", job.Meta.RequestID)
+	}
 
 	return nil
 }

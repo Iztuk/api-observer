@@ -42,7 +42,7 @@ func RunDaemon(hosts map[string]config.Host) error {
 		return fmt.Errorf("connect to database: %w", err)
 	}
 
-	contractRegistry, err := audit.NewContractRegistry(hosts)
+	contractRegistry := audit.NewContractRegistry(hosts)
 	if err != nil {
 		return fmt.Errorf("failed to initialize contract registry: %w", err)
 	}

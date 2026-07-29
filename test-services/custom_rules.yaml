@@ -4,128 +4,241 @@ rules:
     applies_to:
       - request
     type: query
-    description: Detects SQL injection-like patterns in query parameter values.
+    description: Detects common SQL injection patterns in query parameters.
     match:
       paths:
         - "*"
       methods:
         - GET
+        - POST
       patterns:
         - target: query
           name: "*"
-          pattern: "(?i)(union\\s+select|or\\s+1=1|drop\\s+table)"
+          pattern: "(?i)(union\\s+select|or\\s+1\\s*=\\s*1|drop\\s+table|sleep\\s*\\(|information_schema)"
     finding:
       title: Possible SQL injection attempt
-      message: Request query parameter matched a suspicious SQL injection pattern.
+      message: A request query parameter matched a suspicious SQL injection pattern.
 
   request.query.debug_enabled:
     enabled: true
     applies_to:
       - request
     type: query
-    description: Detects requests that enable debug mode through query parameters.
+    description: Detects requests that enable debug behavior through a query parameter.
     match:
       paths:
         - "*"
       methods:
         - GET
+        - POST
       query_params:
         debug:
           - "true"
+          - "1"
+          - "yes"
     finding:
       title: Debug query parameter enabled
-      message: Request included debug=true in the query string.
+      message: The request enabled debug behavior through a query parameter.
 
   request.query.risky_mode:
     enabled: true
     applies_to:
       - request
     type: query
-    description: Detects risky mode values in query parameters.
+    description: Detects potentially risky application modes.
     match:
       paths:
         - "*"
       methods:
         - GET
+        - POST
       query_params:
         mode:
           - debug
           - admin
+          - internal
           - test
     finding:
-      title: Risky mode query parameter
-      message: Request included a risky mode query parameter value.
+      title: Risky mode requested
+      message: The request included a potentially unsafe mode value.
 
-  request.header.debug_header:
+  request.header.debug_enabled:
     enabled: true
     applies_to:
       - request
     type: header
-    description: Detects requests that include debug-related request headers.
+    description: Detects requests containing a debug header.
     match:
       paths:
         - "*"
       methods:
         - GET
+        - POST
       headers:
         X-Debug:
           - "true"
+          - "1"
     finding:
       title: Debug header enabled
-      message: Request included X-Debug=true.
+      message: The request included a debug-enabling HTTP header.
 
-  request.path.sensitive_route_access:
-    enabled: false
+  request.header.suspicious_forwarded_host:
+    enabled: true
     applies_to:
       - request
-    type: path
-    description: Detects requests to sensitive or internal-looking paths.
+    type: header
+    description: Detects suspicious forwarded host values.
     match:
       paths:
         - "*"
       methods:
         - GET
+        - POST
       patterns:
-        - target: path
-          pattern: "(?i)^/(health|admin|internal|debug|actuator|metrics|server-status)(/.*)?$"
+        - target: header
+          name: X-Forwarded-Host
+          pattern: "(?i)(localhost|127\\.0\\.0\\.1|169\\.254\\.169\\.254)"
     finding:
-      title: Sensitive path requested
-      message: Request path matched a sensitive or internal route pattern.
+      title: Suspicious forwarded host
+      message: The request included a suspicious X-Forwarded-Host value.
 
-  response.body.access_token_value:
-    enabled: false
+  request.path.sensitive_route_access:
+    enabled: true
     applies_to:
-      - response
-    type: body_field
-    description: Detects token-like values at tokens.accessToken.
+      - request
+    type: path
+    description: Detects access to sensitive or internal-looking routes.
     match:
       paths:
-        - /leaky-user
+        - "*"
       methods:
         - GET
+        - POST
+      patterns:
+        - target: path
+          pattern: "(?i)^/(admin|internal|debug|actuator|metrics|server-status)(/.*)?$"
+    finding:
+      title: Sensitive path requested
+      message: The request targeted a sensitive or internal-looking route.
+
+  request.path.failure_endpoint:
+    enabled: true
+    applies_to:
+      - request
+    type: path
+    description: Detects requests to the intentional failure endpoint.
+    match:
+      paths:
+        - /fail
+      methods:
+        - GET
+    finding:
+      title: Intentional failure route requested
+      message: A client requested the endpoint designed to produce an error response.
+
+  request.body.echo_suspicious_content:
+    enabled: true
+    applies_to:
+      - request
+    type: body_field
+    description: Detects suspicious content in the echo message.
+    match:
+      paths:
+        - /echo
+      methods:
+        - POST
       patterns:
         - target: field
-          name: tokens.accessToken
-          pattern: "(?i)fake-access-token"
+          name: message
+          pattern: "(?i)(<script|javascript:|union\\s+select|\\.\\./|/etc/passwd|cmd\\.exe|powershell)"
     finding:
-      title: Access token value exposed
-      message: Response body exposed a token-like value at tokens.accessToken.
+      title: Suspicious echo message
+      message: The echo request contained a value resembling an injection or traversal payload.
 
-  response.body.sensitive_field_exact_match:
+  request.body.echo_sensitive_field:
+    enabled: true
+    applies_to:
+      - request
+    type: body_field
+    description: Detects unexpected sensitive fields in the echo request.
+    match:
+      paths:
+        - /echo
+      methods:
+        - POST
+      fields:
+        - password
+        - passwordHash
+        - accessToken
+        - refreshToken
+        - apiKey
+        - secret
+    finding:
+      title: Sensitive field submitted
+      message: The echo request contained a field commonly used to carry sensitive data.
+
+  response.body.error_message:
     enabled: true
     applies_to:
       - response
     type: body_field
-    description: Detects exact sensitive field paths exposed in JSON response bodies.
+    description: Detects error fields in JSON responses.
     match:
       paths:
-        - /leaky-user
+        - "*"
       methods:
         - GET
+        - POST
       fields:
+        - error
+    finding:
+      title: Error response returned
+      message: The response body contained an error field.
+
+  response.body.sensitive_field:
+    enabled: true
+    applies_to:
+      - response
+    type: body_field
+    description: Detects sensitive fields exposed in JSON responses.
+    match:
+      paths:
+        - "*"
+      methods:
+        - GET
+        - POST
+      fields:
+        - password
         - passwordHash
+        - accessToken
+        - refreshToken
+        - apiKey
+        - secret
         - tokens.accessToken
         - tokens.refreshToken
     finding:
-      title: Sensitive field exposed
-      message: Response body contained an exact sensitive field path.
+      title: Sensitive response field exposed
+      message: The response body exposed a field that may contain sensitive information.
+
+  response.header.server_disclosure:
+    enabled: true
+    applies_to:
+      - response
+    type: header
+    description: Detects server technology disclosure through response headers.
+    match:
+      paths:
+        - "*"
+      methods:
+        - GET
+        - POST
+      patterns:
+        - target: header
+          name: Server
+          pattern: ".+"
+        - target: header
+          name: X-Powered-By
+          pattern: ".+"
+    finding:
+      title: Server technology disclosed
+      message: The response exposed implementation details through an HTTP header.

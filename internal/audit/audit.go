@@ -101,17 +101,12 @@ func NewResponseJob(r *http.Response, host string) *ResponseJob {
 	}
 }
 
-func NewFailureJob(r *http.Request, upstream string, err error) *FailureJob {
+func NewFailureJob(r *http.Request, host string, err error) *FailureJob {
 	requestID := getOrCreateRequestID(r)
 
 	status := http.StatusBadGateway
 	if ne, ok := err.(net.Error); ok && ne.Timeout() {
 		status = http.StatusGatewayTimeout
-	}
-
-	host := r.Header.Get("X-Original-Host")
-	if host == "" {
-		host = r.Host
 	}
 
 	return &FailureJob{

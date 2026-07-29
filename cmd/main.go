@@ -29,7 +29,7 @@ func main() {
 	queue := audit.NewQueue(observerQueueSize())
 	store, err := audit.NewJSONLogStore()
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatal(err.Error())
 	}
 	defer store.Close()
 
