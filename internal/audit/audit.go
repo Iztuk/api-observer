@@ -1,3 +1,4 @@
+// Package audit handles processing and storing jobs and findings.
 package audit
 
 import (
