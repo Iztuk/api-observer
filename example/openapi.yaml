@@ -1,0 +1,205 @@
+openapi: 3.0.3
+
+info:
+  title: Observer Example API
+  description: Example HTTP API instrumented with the Go Observer SDK.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Check application health
+      tags:
+        - System
+      responses:
+        "200":
+          description: Application is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /hello:
+    get:
+      operationId: getHello
+      summary: Return a greeting
+      tags:
+        - Example
+      responses:
+        "200":
+          description: Greeting returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelloResponse"
+
+  /echo:
+    post:
+      operationId: postEcho
+      summary: Echo a supplied message
+      tags:
+        - Example
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EchoRequest"
+      responses:
+        "200":
+          description: Message echoed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EchoResponse"
+
+        "400":
+          description: Request body contained invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+        "415":
+          description: Unsupported content type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+        "422":
+          description: Message was missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      summary: Return an example user
+      tags:
+        - Users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Numeric user identifier
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: User returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+
+        "400":
+          description: Invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /fail:
+    get:
+      operationId: getFailure
+      summary: Return an intentional server error
+      description: Used to test response auditing and error findings.
+      tags:
+        - Testing
+      responses:
+        "500":
+          description: Intentional test failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+          example: ok
+
+    HelloResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: Hello from the observed API
+
+    EchoRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          example: hello observer
+
+    EchoResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+        - timestamp
+      properties:
+        message:
+          type: string
+          example: hello observer
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-07-29T13:00:00Z"
+
+    UserResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          example: 42
+        name:
+          type: string
+          example: User 42
+        email:
+          type: string
+          format: email
+          example: user42@example.com
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: invalid request
