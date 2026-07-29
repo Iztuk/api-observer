@@ -20,6 +20,15 @@ type JSONLogStore struct {
 	auditFile *os.File
 }
 
+type Finding struct {
+	ID        string
+	JobID     string
+	RuleID    string
+	Title     string
+	Message   string
+	CreatedAt time.Time
+}
+
 type AuditJob struct {
 	ID   string `json:"id"`
 	Type string `json:"type"`
