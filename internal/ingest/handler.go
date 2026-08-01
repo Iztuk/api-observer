@@ -48,6 +48,18 @@ func (h *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 
 	ok := h.Registry.HostExists(client.HostName)
 	if !ok {
+		if client.OpenAPI == nil && client.HostRules == nil {
+			http.Error(w, "provide an OpenAPI document, a host rules document, or both", http.StatusBadRequest)
+		}
+
+		if client.OpenAPI == nil {
+			client.OpenAPI = &audit.OpenAPIDoc{}
+		}
+
+		if client.HostRules == nil {
+			client.HostRules = &audit.HostRulesDoc{}
+		}
+
 		h.Registry.RegisterHost(client.HostName, *client.OpenAPI, *client.HostRules)
 	}
 
