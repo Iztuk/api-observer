@@ -1,0 +1,174 @@
+:root {
+  --sidebar-width: 14rem;
+  --border-color: #dddddd;
+  --background: #ffffff;
+  --sidebar-background: #f7f7f7;
+  --text-color: #222222;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--text-color);
+  font-family: system-ui, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-layout {
+  min-height: 100vh;
+}
+
+.page {
+  min-width: 0;
+}
+
+#main-content {
+  padding: 1rem;
+}
+
+/* Checkbox controller */
+
+.sidebar-toggle {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Mobile header */
+
+.mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 3.5rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mobile-title,
+.sidebar-title {
+  font-weight: 600;
+}
+
+.menu-button {
+  display: grid;
+  gap: 0.25rem;
+  width: 2rem;
+  padding: 0.35rem;
+  cursor: pointer;
+}
+
+.menu-button span {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+}
+
+/* Sidebar */
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 20;
+
+  display: flex;
+  flex-direction: column;
+
+  width: min(var(--sidebar-width), 80vw);
+  min-height: 100vh;
+
+  background: var(--sidebar-background);
+  border-right: 1px solid var(--border-color);
+
+  transform: translateX(-100%);
+  transition: transform 150ms ease;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 3.5rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-close {
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.sidebar-nav {
+  display: grid;
+  padding: 0.75rem;
+}
+
+.sidebar-nav a {
+  padding: 0.65rem 0.5rem;
+}
+
+.sidebar-nav a:hover {
+  text-decoration: underline;
+}
+
+/* Mobile overlay */
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+
+  display: none;
+  background: rgb(0 0 0 / 20%);
+}
+
+.sidebar-toggle:checked ~ .app-layout .sidebar {
+  transform: translateX(0);
+}
+
+.sidebar-toggle:checked ~ .sidebar-overlay {
+  display: block;
+}
+
+/* Desktop */
+
+@media (min-width: 48rem) {
+  .app-layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    width: var(--sidebar-width);
+    transform: none;
+  }
+
+  .mobile-header,
+  .sidebar-close,
+  .sidebar-overlay {
+    display: none;
+  }
+
+  #main-content {
+    padding: 1.5rem;
+  }
+}

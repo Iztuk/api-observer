@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"observer/internal/audit"
+	"observer/internal/dashboard"
 	"observer/internal/ingest"
 	"os"
 	"os/signal"
@@ -51,6 +52,19 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  10 * time.Second,
 	}
+
+	fileServer := http.FileServer(
+		http.Dir("./internal/dashboard/views/assets"),
+	)
+
+	mux.Handle(
+		"GET /static/",
+		http.StripPrefix("/static/", fileServer),
+	)
+
+	// Dashboard
+	dashboardHandler := dashboard.NewHandler()
+	dashboardHandler.RegisterRoutes(mux)
 
 	fmt.Printf("Server is running on http://localhost%s\n", observerAddress())
 

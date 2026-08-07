@@ -1,0 +1,24 @@
+package views
+
+templ Sidebar() {
+	<aside class="sidebar">
+		<div class="sidebar-header">
+			<a href="/app" class="sidebar-title">
+				API Observer
+			</a>
+			<label
+				for="sidebar-toggle"
+				class="sidebar-close"
+				aria-label="Close navigation"
+			>
+				&times;
+			</label>
+		</div>
+		<nav class="sidebar-nav" aria-label="Primary navigation">
+			<a href="/">Overview</a>
+			<a href="/log-explorer">Log Explorer</a>
+			<a href="/findings">Findings</a>
+			<a href="/rules">Rules</a>
+		</nav>
+	</aside>
+}
