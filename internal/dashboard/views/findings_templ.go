@@ -8,7 +8,7 @@ package views
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func Sidebar() templ.Component {
+func FindingsPage(title string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -29,7 +29,25 @@ func Sidebar() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<aside class=\"sidebar\"><div class=\"sidebar-header\"><div class=\"sidebar-title\">API Observer</div><button id=\"theme-toggle\" class=\"theme-toggle\" type=\"button\" aria-label=\"Switch color theme\" title=\"Switch color theme\"><span class=\"theme-icon-light\" aria-hidden=\"true\">☀</span> <span class=\"theme-icon-dark\" aria-hidden=\"true\">☾</span></button> <label for=\"sidebar-toggle\" class=\"sidebar-close\" aria-label=\"Close navigation\">&times;</label></div><nav class=\"sidebar-nav\" aria-label=\"Primary navigation\"><a href=\"/\">Overview</a> <a href=\"/log-explorer\">Log Explorer</a> <a href=\"/findings\">Findings</a> <a href=\"/rules\">Rules</a></nav></aside>")
+		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = FindingsPageContent().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = Layout(title).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -37,7 +55,7 @@ func Sidebar() templ.Component {
 	})
 }
 
-func SidebarThemeToggle() templ.Component {
+func FindingsPageContent() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -53,12 +71,12 @@ func SidebarThemeToggle() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var2 == nil {
-			templ_7745c5c3_Var2 = templ.NopComponent
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<script>\n\t\t(function () {\n\t\t\tconst button = document.getElementById(\"theme-toggle\");\n\n\t\t\tif (!button) {\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tfunction updateLabel() {\n\t\t\t\tconst currentTheme = document.documentElement.dataset.theme;\n\n\t\t\t\tbutton.setAttribute(\n\t\t\t\t\t\"aria-label\",\n\t\t\t\t\tcurrentTheme === \"dark\"\n\t\t\t\t\t\t? \"Switch to light mode\"\n\t\t\t\t\t\t: \"Switch to dark mode\",\n\t\t\t\t);\n\t\t\t}\n\n\t\t\tbutton.addEventListener(\"click\", function () {\n\t\t\t\tconst currentTheme = document.documentElement.dataset.theme;\n\t\t\t\tconst nextTheme = currentTheme === \"dark\" ? \"light\" : \"dark\";\n\n\t\t\t\tdocument.documentElement.dataset.theme = nextTheme;\n\t\t\t\tlocalStorage.setItem(\"theme\", nextTheme);\n\n\t\t\t\tupdateLabel();\n\t\t\t});\n\n\t\t\tupdateLabel();\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div>Hello from findings page!</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

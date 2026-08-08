@@ -1,0 +1,98 @@
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.page-header p {
+  margin: 0.35rem 0 0;
+  color: var(--muted-text-color);
+}
+
+.application-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.application-card {
+  padding: 1rem;
+  background: var(--sidebar-background);
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+}
+
+.application-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.application-card-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.application-details {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.application-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.application-details dt {
+  color: var(--muted-text-color);
+}
+
+.application-details dd {
+  margin: 0;
+  text-align: right;
+}
+
+.application-card-footer {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.application-card-footer a {
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.application-card-footer a:hover {
+  color: var(--muted-text-color);
+}
+
+.empty-state {
+  padding: 2rem 1rem;
+  color: var(--muted-text-color);
+  text-align: center;
+  border: 1px dashed var(--border-color);
+  border-radius: 0.375rem;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+@media (min-width: 40rem) {
+  .application-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 70rem) {
+  .application-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

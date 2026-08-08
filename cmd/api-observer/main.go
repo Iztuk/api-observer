@@ -63,7 +63,7 @@ func main() {
 	)
 
 	// Dashboard
-	dashboardHandler := dashboard.NewHandler()
+	dashboardHandler := dashboard.NewHandler(registry)
 	dashboardHandler.RegisterRoutes(mux)
 
 	fmt.Printf("Server is running on http://localhost%s\n", observerAddress())

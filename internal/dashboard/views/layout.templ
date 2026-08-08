@@ -8,6 +8,8 @@ templ Layout(title string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ title }</title>
 			<link rel="stylesheet" href="/static/app.css"/>
+
+            @LoadTheme()
 		</head>
 		<body>
 			<input
@@ -43,5 +45,23 @@ templ Layout(title string) {
 				aria-label="Close navigation"
 			></label>
 		</body>
+
+        @SidebarThemeToggle()
+        <script src="/static/htmx.min.js"></script>
 	</html>
+}
+
+templ LoadTheme() {
+	<script>
+		(function () {
+			const savedTheme = localStorage.getItem("theme");
+			const systemDark = window.matchMedia(
+				"(prefers-color-scheme: dark)",
+			).matches;
+
+			const theme = savedTheme || (systemDark ? "dark" : "light");
+
+			document.documentElement.dataset.theme = theme;
+		})();
+	</script>
 }

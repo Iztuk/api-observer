@@ -1,0 +1,121 @@
+package views
+
+import (
+	"fmt"
+	"observer/internal/audit"
+	"observer/internal/query"
+)
+
+templ LogExplorerPage(title string, logs query.LogPage) {
+	@Layout(title) {
+		@LogExplorerPageContent(logs)
+	}
+}
+
+templ LogExplorerPageContent(logs query.LogPage) {
+	<link rel="stylesheet" href="/static/log-explorer.css"/>
+	<header class="page-header">
+		<h1>Log Explorer</h1>
+		<p>Browse recorded API activity.</p>
+	</header>
+	@LogExplorerQuery()
+	@LogExplorerTable(logs, 10)
+}
+
+templ LogExplorerQuery() {
+	<div class="log-query">
+		<button
+			type="button"
+			class="refresh-button"
+			aria-label="Refresh logs"
+			title="Refresh logs"
+			hx-get="/logs?cursor=0&limit=10"
+			hx-target="#log-explorer-table-body"
+			hx-swap="innerHTML"
+			hx-indicator="#log-loading"
+			hx-on::before:request="
+				document.querySelector('#log-explorer-table-body').innerHTML = ''
+			"
+		>
+			<span class="refresh-symbol" aria-hidden="true">⟳</span>
+		</button>
+		<input
+			type="text"
+			name="query"
+			placeholder="Search logs..."
+			autocomplete="off"
+		/>
+		<button type="button">
+			Search
+		</button>
+	</div>
+}
+
+templ LogExplorerTable(logs query.LogPage, limit int) {
+	<div class="log-table-wrapper">
+		<div
+			id="log-loading"
+			class="htmx-indicator log-loading-overlay"
+		>
+			<div class="log-loading">
+				<span class="loading-spinner"></span>
+				<span>Loading logs...</span>
+			</div>
+		</div>
+		<table class="log-table">
+			<thead>
+				<tr>
+					<th>Timestamp</th>
+					<th>Host</th>
+					<th>Type</th>
+					<th>Method</th>
+					<th>Path</th>
+					<th>Status</th>
+				</tr>
+			</thead>
+			<tbody
+				id="log-explorer-table-body"
+				hx-trigger="load"
+				hx-get={ fmt.Sprintf("/logs?cursor=0&limit=%d", limit) }
+				hx-indicator="#log-loading"
+			></tbody>
+		</table>
+	</div>
+}
+
+templ LogExplorerTableRows(jobs []audit.AuditJob, cursor query.LogCursor, limit int) {
+	for i, job := range jobs {
+		<tr
+			if i == len(jobs) - 1 && cursor > 0 {
+				hx-trigger="revealed"
+				hx-get={ fmt.Sprintf("/logs?cursor=%d&limit=%d", cursor, limit) }
+				hx-swap="afterend"
+				hx-indicator="#log-loading"
+			}
+			class="log-row"
+		>
+			<td class="log-timestamp">
+				{ job.Timestamp }
+			</td>
+			<td class="log-host">
+				{ job.Host }
+			</td>
+			<td class="log-type">
+				{ job.Type }
+			</td>
+			<td class="log-method">
+				{ job.Method }
+			</td>
+			<td class="log-path">
+				{ job.Path }
+			</td>
+			<td class="log-status">
+				if job.Status > 0 {
+					{ fmt.Sprintf("%d", job.Status) }
+				} else {
+					<span>-</span>
+				}
+			</td>
+		</tr>
+	}
+}

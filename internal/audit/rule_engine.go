@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"sort"
 	"strings"
 	"sync"
 )
@@ -252,6 +253,45 @@ type ContractRegistry struct {
 	mu        sync.RWMutex
 	contracts map[string]OpenAPIDoc
 	rules     map[string]HostRulesDoc
+}
+
+type RegisteredHost struct {
+	HostName    string
+	HasContract bool
+	HasRules    bool
+}
+
+func (r *ContractRegistry) RegisteredHosts() []RegisteredHost {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	hosts := make(map[string]RegisteredHost, len(r.contracts)+len(r.rules))
+
+	for host := range r.contracts {
+		entry := hosts[host]
+		entry.HostName = host
+		entry.HasContract = true
+		hosts[host] = entry
+	}
+
+	for host := range r.rules {
+		entry := hosts[host]
+		entry.HostName = host
+		entry.HasRules = true
+		hosts[host] = entry
+	}
+
+	result := make([]RegisteredHost, 0, len(hosts))
+
+	for _, host := range hosts {
+		result = append(result, host)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].HostName < result[j].HostName
+	})
+
+	return result
 }
 
 func (r *ContractRegistry) RegisterHost(host string, openapi OpenAPIDoc, hostrules HostRulesDoc) {

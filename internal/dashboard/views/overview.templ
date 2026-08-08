@@ -1,7 +1,63 @@
 package views
 
-templ OverviewPage(title string) {
+import "observer/internal/audit"
+
+templ OverviewPage(title string, hosts []audit.RegisteredHost) {
 	@Layout(title) {
-		<p>Hello from the overview page!</p>
+		@OverviewPageContent(hosts)
 	}
+}
+
+templ OverviewPageContent(hosts []audit.RegisteredHost) {
+	<link rel="stylesheet" href="/static/overview.css"/>
+	<header class="page-header">
+		<h1>Applications</h1>
+		<p>Applications currently registered with API Observer.</p>
+	</header>
+	if len(hosts) == 0 {
+		<div class="empty-state">
+			<p>No applications are currently registered.</p>
+		</div>
+	} else {
+		<div class="application-grid">
+			for _, host := range hosts {
+				@OverviewCard(host)
+			}
+		</div>
+	}
+}
+
+templ OverviewCard(host audit.RegisteredHost) {
+	<article class="application-card">
+		<header class="application-card-header">
+			<h2>{ host.HostName }</h2>
+		</header>
+		<dl class="application-details">
+			<div>
+				<dt>OpenAPI</dt>
+				<dd>
+					if host.HasContract {
+						<span>Available</span>
+					} else {
+						<span>Not provided</span>
+					}
+				</dd>
+			</div>
+			<div>
+				<dt>Host rules</dt>
+				<dd>
+					if host.HasRules {
+						<span>Available</span>
+					} else {
+						<span>Not provided</span>
+					}
+				</dd>
+			</div>
+		</dl>
+		<footer class="application-card-footer">
+			<a href={ templ.SafeURL("/log-explorer?host=" + host.HostName) }>
+				View activity
+			</a>
+		</footer>
+	</article>
 }
