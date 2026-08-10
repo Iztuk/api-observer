@@ -29,7 +29,7 @@ func Sidebar() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<aside class=\"sidebar\"><div class=\"sidebar-header\"><div class=\"sidebar-title\">API Observer</div><button id=\"theme-toggle\" class=\"theme-toggle\" type=\"button\" aria-label=\"Switch color theme\" title=\"Switch color theme\"><span class=\"theme-icon-light\" aria-hidden=\"true\">☀</span> <span class=\"theme-icon-dark\" aria-hidden=\"true\">☾</span></button> <label for=\"sidebar-toggle\" class=\"sidebar-close\" aria-label=\"Close navigation\">&times;</label></div><nav class=\"sidebar-nav\" aria-label=\"Primary navigation\"><a href=\"/\">Overview</a> <a href=\"/log-explorer\">Log Explorer</a> <a href=\"/findings\">Findings</a> <a href=\"/rules\">Rules</a></nav></aside>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<aside class=\"sidebar\"><div class=\"sidebar-header\"><div class=\"sidebar-title\">API Observer</div><button id=\"theme-toggle\" class=\"theme-toggle\" type=\"button\" aria-label=\"Switch color theme\" title=\"Switch color theme\"><span class=\"theme-icon-light\" aria-hidden=\"true\">☀</span> <span class=\"theme-icon-dark\" aria-hidden=\"true\">☾</span></button> <label for=\"sidebar-toggle\" class=\"sidebar-close\" aria-label=\"Close navigation\">&times;</label></div><nav class=\"sidebar-nav\" aria-label=\"Primary navigation\"><a href=\"/log-explorer\">Log Explorer</a> <a href=\"/rules\">Rules</a></nav></aside>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

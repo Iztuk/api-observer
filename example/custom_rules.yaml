@@ -14,7 +14,7 @@ rules:
       patterns:
         - target: query
           name: "*"
-          pattern: "(?i)(union\\s+select|or\\s+1\\s*=\\s*1|drop\\s+table|sleep\\s*\\(|information_schema)"
+          pattern: "(?i)(union\\s+select|or\\s+['\"]?1['\"]?\\s*=\\s*['\"]?1['\"]?|drop\\s+table|sleep\\s*\\(|information_schema)"
     finding:
       title: Possible SQL injection attempt
       message: A request query parameter matched a suspicious SQL injection pattern.

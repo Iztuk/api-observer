@@ -26,7 +26,7 @@ func GetLogs(ctx context.Context, cursor int64, limit int) (query.LogPage, error
 		findingsLogPath = "./logs/findings.jsonl"
 	}
 
-	jobLogs, err := query.ReadLogs(
+	logs, err := query.ReadLogs(
 		ctx,
 		jobLogPath,
 		findingsLogPath,
@@ -35,11 +35,39 @@ func GetLogs(ctx context.Context, cursor int64, limit int) (query.LogPage, error
 	)
 	if err != nil {
 		return query.LogPage{}, fmt.Errorf(
-			"failed to read job log %q: %w",
-			jobLogPath,
+			"failed to read logs: %w",
 			err,
 		)
 	}
 
-	return jobLogs, nil
+	return logs, nil
+}
+
+func GetLog(ctx context.Context, cursor int64) (query.LogItem, error) {
+	jobLogPath := os.Getenv("API_OBSERVER_JOB_LOG")
+
+	if jobLogPath == "" {
+		jobLogPath = "./logs/jobs.jsonl"
+	}
+
+	findingsLogPath := os.Getenv("API_OBSERVER_FINDINGS_LOG")
+
+	if findingsLogPath == "" {
+		findingsLogPath = "./logs/findings.jsonl"
+	}
+
+	log, err := query.ReadLog(
+		ctx,
+		jobLogPath,
+		findingsLogPath,
+		query.LogCursor(cursor),
+	)
+	if err != nil {
+		return query.LogItem{}, fmt.Errorf(
+			"failed to read log: %w",
+			err,
+		)
+	}
+
+	return log, err
 }

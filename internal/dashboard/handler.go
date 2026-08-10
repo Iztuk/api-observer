@@ -19,22 +19,14 @@ func NewHandler(registry *audit.ContractRegistry) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /", h.OverviewPage)
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/log-explorer", http.StatusSeeOther)
+	})
 	mux.HandleFunc("GET /log-explorer", h.LogExplorerPage)
 	mux.HandleFunc("GET /logs", h.GetLogExplorerLogs)
+	mux.HandleFunc("GET /logs/details", h.GetLogExplorerLogDetails)
 
-	mux.HandleFunc("GET /findings", h.FindingsPage)
-}
-
-func (h *Handler) OverviewPage(w http.ResponseWriter, r *http.Request) {
-
-	if err := views.OverviewPage("API Observer", h.Registry.RegisteredHosts()).Render(r.Context(), w); err != nil {
-		http.Error(
-			w,
-			"Unable to render overview page.",
-			http.StatusInternalServerError,
-		)
-	}
+	mux.HandleFunc("GET /rules", h.RulesPage)
 }
 
 func (h *Handler) LogExplorerPage(w http.ResponseWriter, r *http.Request) {
@@ -56,16 +48,6 @@ func (h *Handler) LogExplorerPage(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-}
-
-func (h *Handler) FindingsPage(w http.ResponseWriter, r *http.Request) {
-	if err := views.FindingsPage("Findings").Render(r.Context(), w); err != nil {
-		http.Error(
-			w,
-			"Unable to render findings page.",
-			http.StatusInternalServerError,
-		)
-	}
 }
 
 func (h *Handler) GetLogExplorerLogs(w http.ResponseWriter, r *http.Request) {
@@ -94,6 +76,47 @@ func (h *Handler) GetLogExplorerLogs(w http.ResponseWriter, r *http.Request) {
 		http.Error(
 			w,
 			"Unable to render logs.",
+			http.StatusInternalServerError,
+		)
+	}
+}
+
+func (h *Handler) GetLogExplorerLogDetails(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+
+	cursor, err := strconv.Atoi(queryParams.Get("cursor"))
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("Unable to fetch log cursor. %s", err.Error()),
+			http.StatusInternalServerError,
+		)
+	}
+
+	item, err := GetLog(r.Context(), int64(cursor))
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("Unable to fetch log. %s", err.Error()),
+			http.StatusInternalServerError,
+		)
+	}
+
+	if err := views.LogExplorerDetailSidebar(item).Render(r.Context(), w); err != nil {
+		http.Error(
+			w,
+			"Unable to render log details.",
+			http.StatusInternalServerError,
+		)
+	}
+}
+
+func (h *Handler) RulesPage(w http.ResponseWriter, r *http.Request) {
+
+	if err := views.RulesPage("Rules").Render(r.Context(), w); err != nil {
+		http.Error(
+			w,
+			"Unable to render rules page.",
 			http.StatusInternalServerError,
 		)
 	}

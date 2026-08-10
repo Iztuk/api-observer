@@ -18,7 +18,13 @@ templ LogExplorerPageContent(logs query.LogPage) {
 		<p>Browse recorded API activity.</p>
 	</header>
 	@LogExplorerQuery()
-	@LogExplorerTable(logs, 25)
+	<div class="log-explorer-layout">
+		<div class="log-explorer-main">
+			@LogExplorerTable(logs, 25)
+		</div>
+		<div id="log-explorer-details"></div>
+	</div>
+	@LogExplorerDetailSidebarScript()
 }
 
 templ LogExplorerQuery() {
@@ -30,10 +36,12 @@ templ LogExplorerQuery() {
 			title="Refresh logs"
 			hx-get="/logs?cursor=0&limit=25"
 			hx-target="#log-explorer-table-body"
-			hx-swap="innerHTML"
+			hx-swap="innerHTML swap:500ms"
 			hx-indicator="#log-loading"
-			hx-on::before:request="
-				document.querySelector('#log-explorer-table-body').innerHTML = ''
+			hx-on::before-request="
+				document
+					.getElementById('log-explorer-table-body')
+					.replaceChildren()
 			"
 		>
 			<span class="refresh-symbol" aria-hidden="true">⟳</span>
@@ -83,16 +91,21 @@ templ LogExplorerTable(logs query.LogPage, limit int) {
 	</div>
 }
 
-templ LogExplorerTableRows(items []query.LogItem, cursor query.LogCursor, limit int) {
-	for i, item := range items {
+templ LogExplorerTableRows(
+	items []query.LogItem,
+	cursor query.LogCursor,
+	limit int,
+) {
+	for _, item := range items {
 		<tr
-			if i == len(items) - 1 && cursor > 0 {
-				hx-trigger="revealed"
-				hx-get={ fmt.Sprintf("/logs?cursor=%d&limit=%d", cursor, limit) }
-				hx-swap="afterend"
-				hx-indicator="#log-loading"
-			}
 			class="log-row"
+			hx-get={ fmt.Sprintf(
+				"/logs/details?cursor=%d",
+				item.JobCursor,
+			) }
+			hx-trigger="click"
+			hx-target="#log-explorer-details"
+			hx-swap="innerHTML"
 		>
 			<td class="log-timestamp">
 				{ item.Job.Timestamp }
@@ -125,11 +138,247 @@ templ LogExplorerTableRows(items []query.LogItem, cursor query.LogCursor, limit 
 			</td>
 		</tr>
 	}
-	if cursor == 0 {
+	if cursor > 0 {
+		<tr
+			class="log-load-more"
+			hx-trigger="revealed"
+			hx-get={ fmt.Sprintf(
+				"/logs?cursor=%d&limit=%d",
+				cursor,
+				limit,
+			) }
+			hx-swap="outerHTML"
+			hx-indicator="#log-loading"
+		>
+			<td colspan="7"></td>
+		</tr>
+	} else {
 		<tr class="log-end-row">
 			<td colspan="7">
 				End of logs
 			</td>
 		</tr>
 	}
+}
+
+templ LogExplorerDetailSidebar(item query.LogItem) {
+	<aside
+		id="log-detail-sidebar"
+		class="log-detail-sidebar"
+		aria-label="Log details"
+	>
+		<div
+			class="log-detail-resizer"
+			aria-hidden="true"
+		></div>
+		<header class="log-detail-header">
+			<div>
+				<h2>Log Details</h2>
+				<p>{ item.Job.Method } { item.Job.Path }</p>
+			</div>
+			<button
+				type="button"
+				class="log-detail-close"
+				aria-label="Close log details"
+				title="Close log details"
+			>
+				×
+			</button>
+		</header>
+		<div
+			id="log-detail-content"
+			class="log-detail-content"
+		>
+			<section class="log-detail-section">
+				<h3>Overview</h3>
+				<dl class="log-detail-list">
+					<div>
+						<dt>Type</dt>
+						<dd>{ item.Job.Type }</dd>
+					</div>
+					<div>
+						<dt>Host</dt>
+						<dd>{ item.Job.Host }</dd>
+					</div>
+					<div>
+						<dt>Method</dt>
+						<dd>{ item.Job.Method }</dd>
+					</div>
+					<div>
+						<dt>Path</dt>
+						<dd>{ item.Job.Path }</dd>
+					</div>
+					if item.Job.Query != "" {
+						<div class="log-detail-query">
+							<dt>Query</dt>
+							<dd>
+								<dl class="log-query-params">
+									for name, values := range parseQueryParams(item.Job.Query) {
+										for _, value := range values {
+											<div class="log-query-param">
+												<dt>{ name }</dt>
+												<dd>{ value }</dd>
+											</div>
+										}
+									}
+								</dl>
+							</dd>
+						</div>
+					}
+					if item.Job.Status > 0 {
+						<div>
+							<dt>Status</dt>
+							<dd>{ fmt.Sprintf("%d", item.Job.Status) }</dd>
+						</div>
+					}
+					<div>
+						<dt>Timestamp</dt>
+						<dd>{ item.Job.Timestamp }</dd>
+					</div>
+				</dl>
+			</section>
+			<section class="log-detail-section">
+				<h3>Identifiers</h3>
+				<dl class="log-detail-list">
+					<div>
+						<dt>Job ID</dt>
+						<dd class="log-detail-code">{ item.Job.ID }</dd>
+					</div>
+					<div>
+						<dt>Request ID</dt>
+						<dd class="log-detail-code">{ item.Job.RequestID }</dd>
+					</div>
+				</dl>
+			</section>
+			if len(item.Job.Headers) > 0 {
+				<section class="log-detail-section">
+					<h3>Headers</h3>
+					<div class="log-detail-code-block">
+						for name, values := range item.Job.Headers {
+							<div class="log-detail-header-row">
+								<span class="log-detail-header-name">
+									{ name }
+								</span>
+								<span>
+									{ fmt.Sprintf("%v", values) }
+								</span>
+							</div>
+						}
+					</div>
+				</section>
+			}
+			if item.Job.Body != "" {
+				<section class="log-detail-section">
+					<h3>Body</h3>
+					<pre class="log-detail-code-block"><code>{ item.Job.Body }</code></pre>
+				</section>
+			}
+			if item.Job.Error != "" {
+				<section class="log-detail-section">
+					<h3>Error</h3>
+					<div class="log-detail-error">
+						{ item.Job.Error }
+					</div>
+				</section>
+			}
+			<section class="log-detail-section">
+				<h3>
+					Findings
+					<span class="log-detail-count">
+						{ fmt.Sprintf("%d", len(item.Findings)) }
+					</span>
+				</h3>
+				if len(item.Findings) == 0 {
+					<p class="log-detail-muted">
+						No findings for this log.
+					</p>
+				} else {
+					<div class="log-detail-findings">
+						for _, finding := range item.Findings {
+							<a
+								href={fmt.Sprintf("/rules#%s-%s", item.Job.Host, finding.RuleID)}
+							>
+								<article class="log-detail-finding">
+									<div class="log-detail-finding-header">
+										<strong>{ finding.Title }</strong>
+										<span class="log-detail-code">
+											{ finding.RuleID }
+										</span>
+									</div>
+									<p>{ finding.Message }</p>
+								</article>
+							</a>
+						}
+					</div>
+				}
+			</section>
+		</div>
+	</aside>
+}
+
+templ LogExplorerDetailSidebarScript() {
+	<script>
+		(() => {
+			let resizing = false;
+			let sidebar = null;
+
+			document.addEventListener("mousedown", (event) => {
+				const resizer = event.target.closest(".log-detail-resizer");
+
+				if (!resizer) {
+					return;
+				}
+
+				sidebar = resizer.closest(".log-detail-sidebar");
+
+				if (!sidebar) {
+					return;
+				}
+
+				resizing = true;
+
+				document.body.classList.add("resizing-log-sidebar");
+			});
+
+			document.addEventListener("mousemove", (event) => {
+				if (!resizing || !sidebar) {
+					return;
+				}
+
+				const width = window.innerWidth - event.clientX;
+
+				const minWidth = 280;
+				const maxWidth = window.innerWidth * 0.65;
+
+				const newWidth = Math.min(Math.max(width, minWidth), maxWidth);
+
+				sidebar.style.width = `${newWidth}px`;
+			});
+
+			document.addEventListener("mouseup", () => {
+				if (!resizing) {
+					return;
+				}
+
+				resizing = false;
+				sidebar = null;
+
+				document.body.classList.remove("resizing-log-sidebar");
+			});
+
+			document.addEventListener("click", (event) => {
+				const closeButton = event.target.closest(".log-detail-close");
+
+				if (!closeButton) {
+					return;
+				}
+
+				const details = document.getElementById("log-explorer-details");
+
+				if (details) {
+					details.replaceChildren();
+				}
+			});
+		})();
+	</script>
 }
