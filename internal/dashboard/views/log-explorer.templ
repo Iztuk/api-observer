@@ -295,9 +295,7 @@ templ LogExplorerDetailSidebar(item query.LogItem) {
 				} else {
 					<div class="log-detail-findings">
 						for _, finding := range item.Findings {
-							<a
-								href={fmt.Sprintf("/rules#%s-%s", item.Job.Host, finding.RuleID)}
-							>
+							<a href={ findingRuleHref(item.Job.Host, finding.RuleID) }>
 								<article class="log-detail-finding">
 									<div class="log-detail-finding-header">
 										<strong>{ finding.Title }</strong>

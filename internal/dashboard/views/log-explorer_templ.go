@@ -686,9 +686,9 @@ func LogExplorerDetailSidebar(item query.LogItem) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var35 templ.SafeURL
-				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinURLErrs(fmt.Sprintf("/rules#%s-%s", item.Job.Host, finding.RuleID))
+				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinURLErrs(findingRuleHref(item.Job.Host, finding.RuleID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 299, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 298, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -701,7 +701,7 @@ func LogExplorerDetailSidebar(item query.LogItem) templ.Component {
 				var templ_7745c5c3_Var36 string
 				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(finding.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 303, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 301, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 				if templ_7745c5c3_Err != nil {
@@ -714,7 +714,7 @@ func LogExplorerDetailSidebar(item query.LogItem) templ.Component {
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(finding.RuleID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 305, Col: 27}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 303, Col: 27}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
@@ -727,7 +727,7 @@ func LogExplorerDetailSidebar(item query.LogItem) templ.Component {
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(finding.Message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 308, Col: 29}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 306, Col: 29}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {

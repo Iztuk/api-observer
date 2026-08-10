@@ -113,7 +113,7 @@ func (h *Handler) GetLogExplorerLogDetails(w http.ResponseWriter, r *http.Reques
 
 func (h *Handler) RulesPage(w http.ResponseWriter, r *http.Request) {
 
-	if err := views.RulesPage("Rules").Render(r.Context(), w); err != nil {
+	if err := views.RulesPage("Rules", h.Registry.RegisteredHosts()).Render(r.Context(), w); err != nil {
 		http.Error(
 			w,
 			"Unable to render rules page.",

@@ -9,29 +9,6 @@ import (
 type RuleID string
 
 const (
-	// RuleProxyUpstreamFailure applies when the proxy successfully matches a host
-	// and route target, but cannot complete the upstream request due to a
-	// non-timeout proxy error.
-	//
-	// Example:
-	//   - upstream service is not running
-	//   - connection is refused
-	//   - upstream connection is reset
-	//
-	// This rule is evaluated against FailureJob values.
-	RuleProxyUpstreamFailure RuleID = "proxy.upstream_failure"
-
-	// RuleProxyUpstreamTimeout applies when the proxy successfully matches a host
-	// and route target, but the upstream request exceeds the configured timeout.
-	//
-	// Example:
-	//   - upstream does not accept the connection before Dial timeout
-	//   - upstream accepts the connection but does not return response headers
-	//     before ResponseHeaderTimeout
-	//
-	// This rule is evaluated against FailureJob values.
-	RuleProxyUpstreamTimeout RuleID = "proxy.upstream_timeout"
-
 	// RuleRequestPathDoesNotExist applies when an incoming request path cannot be
 	// matched to any path defined in the OpenAPI contract for the selected host.
 	//
@@ -256,28 +233,35 @@ type ContractRegistry struct {
 }
 
 type RegisteredHost struct {
-	HostName    string
-	HasContract bool
-	HasRules    bool
+	HostName string
+	Contract *OpenAPIDoc
+	Rules    *HostRulesDoc
 }
 
 func (r *ContractRegistry) RegisteredHosts() []RegisteredHost {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	hosts := make(map[string]RegisteredHost, len(r.contracts)+len(r.rules))
+	hosts := make(
+		map[string]RegisteredHost,
+		len(r.contracts)+len(r.rules),
+	)
 
-	for host := range r.contracts {
+	for host, contract := range r.contracts {
 		entry := hosts[host]
+
 		entry.HostName = host
-		entry.HasContract = true
+		entry.Contract = &contract
+
 		hosts[host] = entry
 	}
 
-	for host := range r.rules {
+	for host, rules := range r.rules {
 		entry := hosts[host]
+
 		entry.HostName = host
-		entry.HasRules = true
+		entry.Rules = &rules
+
 		hosts[host] = entry
 	}
 
@@ -503,8 +487,6 @@ func (r *ContractRegistry) DebugString() string {
 
 func getRules() []Rule {
 	return []Rule{
-		UpstreamFailureRule{},
-		UpstreamTimeoutRule{},
 		RequestPathDoesNotExistRule{},
 		RequestMethodNotAllowedRule{},
 		RequestContentTypeNotAllowed{},
