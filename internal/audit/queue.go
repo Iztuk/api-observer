@@ -19,7 +19,7 @@ import (
 type Job interface {
 	JobType() JobType
 	Metadata() Metadata
-	Process(c context.Context, e *RuleEngine, s *JSONLogStore) error
+	Process(c context.Context, id string, e *RuleEngine, s *JSONLogStore) error
 }
 
 type Queue struct {
@@ -198,9 +198,7 @@ func (r *RequestJob) Metadata() Metadata {
 	return r.Meta
 }
 
-func (r *RequestJob) Process(ctx context.Context, engine *RuleEngine, store *JSONLogStore) error {
-	jobID := uuid.NewString()
-
+func (r *RequestJob) Process(ctx context.Context, jobID string, engine *RuleEngine, store *JSONLogStore) error {
 	findings, err := engine.Evaluate(r, jobID)
 	if err != nil {
 		return err
@@ -221,9 +219,7 @@ func (r *ResponseJob) Metadata() Metadata {
 	return r.Meta
 }
 
-func (r *ResponseJob) Process(ctx context.Context, engine *RuleEngine, store *JSONLogStore) error {
-	jobID := uuid.NewString()
-
+func (r *ResponseJob) Process(ctx context.Context, jobID string, engine *RuleEngine, store *JSONLogStore) error {
 	findings, err := engine.Evaluate(r, jobID)
 	if err != nil {
 		return err
@@ -244,9 +240,7 @@ func (r *FailureJob) Metadata() Metadata {
 	return r.Meta
 }
 
-func (r *FailureJob) Process(ctx context.Context, engine *RuleEngine, store *JSONLogStore) error {
-	jobID := uuid.NewString()
-
+func (r *FailureJob) Process(ctx context.Context, jobID string, engine *RuleEngine, store *JSONLogStore) error {
 	findings, err := engine.Evaluate(r, jobID)
 	if err != nil {
 		return err
@@ -306,12 +300,12 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger,
 							)
 						}
 					}()
-
-					if err := store.SaveJob(job, uuid.NewString()); err != nil {
+					jobID := uuid.NewString()
+					if err := store.SaveJob(job, jobID); err != nil {
 						logger.Printf("audit worker %d failed to save job: %v", workerID, err)
 					}
 
-					if err := ProcessJob(ctx, job, engine, store); err != nil {
+					if err := ProcessJob(ctx, job, jobID, engine, store); err != nil {
 						logger.Printf("audit worker %d failed to process job: %v", workerID, err)
 					}
 				}()
@@ -324,12 +318,12 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger,
 	return &wg
 }
 
-func ProcessJob(ctx context.Context, job Job, engine *RuleEngine, store *JSONLogStore) error {
+func ProcessJob(ctx context.Context, job Job, jobID string, engine *RuleEngine, store *JSONLogStore) error {
 	if job == nil {
 		return fmt.Errorf("nil audit job")
 	}
 
-	return job.Process(ctx, engine, store)
+	return job.Process(ctx, jobID, engine, store)
 }
 
 func (q *Queue) Close() {

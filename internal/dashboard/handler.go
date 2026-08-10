@@ -6,7 +6,6 @@ import (
 	"observer/internal/audit"
 	"observer/internal/dashboard/views"
 	"strconv"
-	"time"
 )
 
 type Handler struct {
@@ -90,8 +89,6 @@ func (h *Handler) GetLogExplorerLogs(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-
-	time.Sleep(2 * time.Second)
 
 	if err := views.LogExplorerTableRows(logs.Items, logs.Cursor, limit).Render(r.Context(), w); err != nil {
 		http.Error(

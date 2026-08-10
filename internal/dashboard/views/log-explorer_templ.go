@@ -10,7 +10,6 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
-	"observer/internal/audit"
 	"observer/internal/query"
 )
 
@@ -90,7 +89,7 @@ func LogExplorerPageContent(logs query.LogPage) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = LogExplorerTable(logs, 10).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = LogExplorerTable(logs, 25).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -119,7 +118,7 @@ func LogExplorerQuery() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"log-query\"><button type=\"button\" class=\"refresh-button\" aria-label=\"Refresh logs\" title=\"Refresh logs\" hx-get=\"/logs?cursor=0&limit=10\" hx-target=\"#log-explorer-table-body\" hx-swap=\"innerHTML\" hx-indicator=\"#log-loading\" hx-on::before:request=\"\n\t\t\t\tdocument.querySelector('#log-explorer-table-body').innerHTML = ''\n\t\t\t\"><span class=\"refresh-symbol\" aria-hidden=\"true\">⟳</span></button> <input type=\"text\" name=\"query\" placeholder=\"Search logs...\" autocomplete=\"off\"> <button type=\"button\">Search</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"log-query\"><button type=\"button\" class=\"refresh-button\" aria-label=\"Refresh logs\" title=\"Refresh logs\" hx-get=\"/logs?cursor=0&limit=25\" hx-target=\"#log-explorer-table-body\" hx-swap=\"innerHTML\" hx-indicator=\"#log-loading\" hx-on::before:request=\"\n\t\t\t\tdocument.querySelector('#log-explorer-table-body').innerHTML = ''\n\t\t\t\"><span class=\"refresh-symbol\" aria-hidden=\"true\">⟳</span></button> <input type=\"text\" name=\"query\" placeholder=\"Search logs...\" autocomplete=\"off\"> <button type=\"button\">Search</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -148,7 +147,7 @@ func LogExplorerTable(logs query.LogPage, limit int) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"log-table-wrapper\"><div id=\"log-loading\" class=\"htmx-indicator log-loading-overlay\"><div class=\"log-loading\"><span class=\"loading-spinner\"></span> <span>Loading logs...</span></div></div><table class=\"log-table\"><thead><tr><th>Timestamp</th><th>Host</th><th>Type</th><th>Method</th><th>Path</th><th>Status</th></tr></thead> <tbody id=\"log-explorer-table-body\" hx-trigger=\"load\" hx-get=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"log-table-wrapper\"><div id=\"log-loading\" class=\"htmx-indicator log-loading-overlay\"><div class=\"log-loading\"><span class=\"loading-spinner\"></span> <span>Loading logs...</span></div></div><table class=\"log-table\"><thead><tr><th>Timestamp</th><th>Host</th><th>Type</th><th>Method</th><th>Path</th><th>Status</th><th>Findings</th></tr></thead> <tbody id=\"log-explorer-table-body\" hx-trigger=\"load\" hx-get=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -169,7 +168,7 @@ func LogExplorerTable(logs query.LogPage, limit int) templ.Component {
 	})
 }
 
-func LogExplorerTableRows(jobs []audit.AuditJob, cursor query.LogCursor, limit int) templ.Component {
+func LogExplorerTableRows(items []query.LogItem, cursor query.LogCursor, limit int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -190,12 +189,12 @@ func LogExplorerTableRows(jobs []audit.AuditJob, cursor query.LogCursor, limit i
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		for i, job := range jobs {
+		for i, item := range items {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<tr")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if i == len(jobs)-1 && cursor > 0 {
+			if i == len(items)-1 && cursor > 0 {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " hx-trigger=\"revealed\" hx-get=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -219,9 +218,9 @@ func LogExplorerTableRows(jobs []audit.AuditJob, cursor query.LogCursor, limit i
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 string
-			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(job.Timestamp)
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(item.Job.Timestamp)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 98, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 98, Col: 24}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -232,9 +231,9 @@ func LogExplorerTableRows(jobs []audit.AuditJob, cursor query.LogCursor, limit i
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(job.Host)
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(item.Job.Host)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 101, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 101, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -245,9 +244,9 @@ func LogExplorerTableRows(jobs []audit.AuditJob, cursor query.LogCursor, limit i
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(job.Type)
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(item.Job.Type)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 104, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 104, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -258,9 +257,9 @@ func LogExplorerTableRows(jobs []audit.AuditJob, cursor query.LogCursor, limit i
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var12 string
-			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(job.Method)
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(item.Job.Method)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 107, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 107, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -271,9 +270,9 @@ func LogExplorerTableRows(jobs []audit.AuditJob, cursor query.LogCursor, limit i
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var13 string
-			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(job.Path)
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(item.Job.Path)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 110, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 110, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -283,11 +282,11 @@ func LogExplorerTableRows(jobs []audit.AuditJob, cursor query.LogCursor, limit i
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if job.Status > 0 {
+			if item.Job.Status > 0 {
 				var templ_7745c5c3_Var14 string
-				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", job.Status))
+				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", item.Job.Status))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 114, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 114, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -299,7 +298,33 @@ func LogExplorerTableRows(jobs []audit.AuditJob, cursor query.LogCursor, limit i
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</td></tr>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</td><td class=\"log-findings\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if len(item.Findings) > 0 {
+				var templ_7745c5c3_Var15 string
+				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(item.Findings)))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/log-explorer.templ`, Line: 121, Col: 54}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<span>-</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</td></tr>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		if cursor == 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<tr class=\"log-end-row\"><td colspan=\"6\">End of logs</td></tr>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

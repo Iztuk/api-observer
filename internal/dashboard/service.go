@@ -20,9 +20,16 @@ func GetLogs(ctx context.Context, cursor int64, limit int) (query.LogPage, error
 		jobLogPath = "./logs/jobs.jsonl"
 	}
 
-	jobLogs, err := query.ReadJobLog(
+	findingsLogPath := os.Getenv("API_OBSERVER_FINDINGS_LOG")
+
+	if findingsLogPath == "" {
+		findingsLogPath = "./logs/findings.jsonl"
+	}
+
+	jobLogs, err := query.ReadLogs(
 		ctx,
 		jobLogPath,
+		findingsLogPath,
 		query.LogCursor(cursor),
 		limit,
 	)

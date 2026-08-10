@@ -153,10 +153,6 @@ func (s *JSONLogStore) SaveJob(job Job, jobID string) error {
 		jobType = string(j.JobType())
 		meta = j.Meta
 
-		// headers, err := marshalHeaders(j.Headers)
-		// if err != nil {
-		// 	return err
-		// }
 		headers = j.Headers
 
 		body = string(j.Body)
@@ -164,10 +160,6 @@ func (s *JSONLogStore) SaveJob(job Job, jobID string) error {
 		jobType = string(j.JobType())
 		meta = j.Meta
 
-		// headers, err := marshalHeaders(j.Headers)
-		// if err != nil {
-		// 	return err
-		// }
 		headers = j.Headers
 
 		body = string(j.Body)

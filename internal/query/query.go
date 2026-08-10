@@ -2,9 +2,12 @@
 package query
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"observer/internal/audit"
 	"os"
 )
@@ -12,25 +15,48 @@ import (
 type LogCursor int64
 
 type LogPage struct {
-	Items  []audit.AuditJob
+	Items  []LogItem
 	Cursor LogCursor
 }
 
-func ReadJobLog(
+type LogItem struct {
+	Job      audit.AuditJob
+	Findings []audit.Finding
+}
+
+func ReadLogs(
 	ctx context.Context,
-	path string,
+	jobsPath,
+	findingsPath string,
 	cursor LogCursor,
 	limit int,
 ) (LogPage, error) {
-	file, err := os.Open(path)
+	logs, position, err := readJobLog(ctx, jobsPath, cursor, limit)
 	if err != nil {
 		return LogPage{}, err
+	}
+
+	items, err := findJobFindings(ctx, logs, findingsPath)
+	if err != nil {
+		return LogPage{}, err
+	}
+
+	return LogPage{
+		Items:  items,
+		Cursor: LogCursor(position),
+	}, nil
+}
+
+func readJobLog(ctx context.Context, path string, cursor LogCursor, limit int) ([]audit.AuditJob, LogCursor, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return []audit.AuditJob{}, 0, err
 	}
 	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
-		return LogPage{}, err
+		return []audit.AuditJob{}, 0, err
 	}
 
 	position := int64(cursor)
@@ -44,7 +70,7 @@ func ReadJobLog(
 	for len(logs) < limit && position > 0 {
 		select {
 		case <-ctx.Done():
-			return LogPage{}, ctx.Err()
+			return []audit.AuditJob{}, 0, ctx.Err()
 		default:
 		}
 
@@ -58,7 +84,7 @@ func ReadJobLog(
 
 		if searchFrom >= 0 {
 			if _, err := file.ReadAt(b[:], searchFrom); err != nil {
-				return LogPage{}, err
+				return []audit.AuditJob{}, 0, err
 			}
 
 			if b[0] == '\n' {
@@ -70,7 +96,7 @@ func ReadJobLog(
 
 		for searchFrom >= 0 {
 			if _, err := file.ReadAt(b[:], searchFrom); err != nil {
-				return LogPage{}, err
+				return []audit.AuditJob{}, 0, err
 			}
 
 			if b[0] == '\n' {
@@ -86,7 +112,7 @@ func ReadJobLog(
 		line := make([]byte, size)
 
 		if _, err := file.ReadAt(line, lineStart); err != nil {
-			return LogPage{}, err
+			return []audit.AuditJob{}, 0, err
 		}
 
 		position = lineStart
@@ -106,8 +132,74 @@ func ReadJobLog(
 		logs = append(logs, log)
 	}
 
-	return LogPage{
-		Items:  logs,
-		Cursor: LogCursor(position),
-	}, nil
+	return logs, LogCursor(position), nil
+}
+
+func findJobFindings(
+	ctx context.Context,
+	logs []audit.AuditJob,
+	path string,
+) ([]LogItem, error) {
+	items := make([]LogItem, 0, len(logs))
+
+	jobIndex := make(map[string]int, len(logs))
+
+	for _, log := range logs {
+		jobIndex[log.ID] = len(items)
+
+		items = append(items, LogItem{
+			Job:      log,
+			Findings: make([]audit.Finding, 0),
+		})
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		line, err := reader.ReadBytes('\n')
+
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		line = bytes.TrimSpace(line)
+
+		if len(line) == 0 {
+			continue
+		}
+
+		var finding audit.Finding
+
+		if err := json.Unmarshal(line, &finding); err != nil {
+			continue
+		}
+
+		index, ok := jobIndex[finding.JobID]
+		if !ok {
+			continue
+		}
+
+		items[index].Findings = append(
+			items[index].Findings,
+			finding,
+		)
+	}
+
+	return items, nil
 }
