@@ -2,6 +2,7 @@ package query
 
 import (
 	"fmt"
+	"strings"
 )
 
 type Lexer struct {
@@ -10,24 +11,27 @@ type Lexer struct {
 	Tokens   []Token
 }
 
-func ParseQuery(rawString string) {
-	var l Lexer = Lexer{
+func ParseQuery(rawString string) error {
+	l := Lexer{
 		Query:    rawString,
 		Position: 0,
 		Tokens:   make([]Token, 0),
 	}
 
-	_ = l
+	err := l.Process()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (l *Lexer) Process() ([]Token, error) {
-	for i, ch := range l.Query {
-		if i != l.Position {
-			continue
-		}
+func (l *Lexer) Process() error {
+	for l.Position < len(l.Query) {
+		ch := rune(l.Query[l.Position])
 
 		if !isAllowedChar(ch) {
-			return nil, newQueryError(
+			return newQueryError(
 				l.Query,
 				l.Position,
 				fmt.Sprintf(
@@ -37,30 +41,54 @@ func (l *Lexer) Process() ([]Token, error) {
 			)
 		}
 
-		switch ch {
-		case '"':
-			l.readString()
-		case '=', '<', '>', '!':
-			l.readOperator()
-		default:
-			if isDigit(ch) {
-				l.readNumber()
-			} else {
-				l.readIdentifier()
-			}
-		}
+		switch {
+		case ch == ' ':
+			l.Position++
 
-		l.Position++
+		case ch == '"':
+			if err := l.readString(); err != nil {
+				return err
+			}
+
+		case isOperatorChar(ch):
+			if err := l.readOperator(); err != nil {
+				return err
+			}
+
+		case ch == '(' || ch == ')':
+			if err := l.readDelimiter(); err != nil {
+				return err
+			}
+
+		case isDigit(ch):
+			if err := l.readNumber(); err != nil {
+				return err
+			}
+
+		case isValidIdentifierStart(ch):
+			if err := l.readIdentifier(); err != nil {
+				return err
+			}
+
+		default:
+			return newQueryError(
+				l.Query,
+				l.Position,
+				fmt.Sprintf(
+					"unexpected character %q",
+					ch,
+				),
+			)
+		}
 	}
 
-	return l.Tokens, nil
+	return nil
 }
 
-func (l *Lexer) readString() {
+func (l *Lexer) readString() error {
 	start := l.Position
 
-	// Skip opening quote.
-	l.Position++
+	l.Position++ // opening quote
 
 	arr := make([]rune, 0)
 
@@ -68,20 +96,26 @@ func (l *Lexer) readString() {
 		ch := rune(l.Query[l.Position])
 
 		if ch == '"' && !isEscaped(arr) {
-			// Skip closing quote.
 			l.Position++
-			break
+
+			l.Tokens = append(l.Tokens, Token{
+				Type:     TokenString,
+				Literal:  string(arr),
+				Position: start,
+			})
+
+			return nil
 		}
 
 		arr = append(arr, ch)
 		l.Position++
 	}
 
-	l.Tokens = append(l.Tokens, Token{
-		Type:     TokenString,
-		Literal:  string(arr),
-		Position: start,
-	})
+	return newQueryError(
+		l.Query,
+		start,
+		"unterminated string",
+	)
 }
 
 func isEscaped(chars []rune) bool {
@@ -239,7 +273,111 @@ func (l *Lexer) readOperator() error {
 	return nil
 }
 
-func (l *Lexer) readIdentifier() {}
+func (l *Lexer) readDelimiter() error {
+	ch := rune(l.Query[l.Position])
+
+	switch ch {
+	case '(':
+		l.Tokens = append(l.Tokens, Token{
+			Type:     TokenLeftParen,
+			Literal:  "(",
+			Position: l.Position,
+		})
+
+		l.Position++
+
+		return nil
+	case ')':
+		l.Tokens = append(l.Tokens, Token{
+			Type:     TokenRightParen,
+			Literal:  ")",
+			Position: l.Position,
+		})
+
+		l.Position++
+
+		return nil
+
+	}
+
+	return newQueryError(
+		l.Query,
+		l.Position,
+		fmt.Sprintf(
+			"invalid character %q",
+			ch,
+		),
+	)
+}
+
+func (l *Lexer) readIdentifier() error {
+	start := l.Position
+
+	arr := make([]rune, 0)
+
+	for l.Position < len(l.Query) {
+		ch := rune(l.Query[l.Position])
+
+		if l.Position == start {
+			if !isValidIdentifierStart(ch) {
+				return newQueryError(
+					l.Query,
+					l.Position,
+					fmt.Sprintf(
+						"invalid character %q",
+						ch,
+					),
+				)
+			}
+		}
+
+		if !isIdentifierChar(ch) {
+			break
+		}
+
+		arr = append(arr, ch)
+		l.Position++
+	}
+
+	strArr := strings.ToLower(string(arr))
+
+	switch strArr {
+	case "and":
+		l.Tokens = append(l.Tokens, Token{
+			Type:     TokenAnd,
+			Literal:  string(arr),
+			Position: start,
+		})
+	case "or":
+		l.Tokens = append(l.Tokens, Token{
+			Type:     TokenOr,
+			Literal:  string(arr),
+			Position: start,
+		})
+	case "not":
+		l.Tokens = append(l.Tokens, Token{
+			Type:     TokenNot,
+			Literal:  string(arr),
+			Position: start,
+		})
+	default:
+		l.Tokens = append(l.Tokens, Token{
+			Type:     TokenIdentifier,
+			Literal:  string(arr),
+			Position: start,
+		})
+	}
+
+	return nil
+}
+
+func isValidIdentifierStart(ch rune) bool {
+	return isLetter(ch) || ch == '_'
+}
+
+func isIdentifierChar(ch rune) bool {
+	return isValidIdentifierStart(ch) || isDigit(ch)
+}
 
 func isAllowedChar(ch rune) bool {
 	return isLetter(ch) ||
@@ -253,17 +391,6 @@ func isAllowedChar(ch rune) bool {
 		ch == '(' ||
 		ch == ')' ||
 		ch == ' '
-}
-
-func isAllowedOperation(curr rune, next rune) bool {
-	switch curr {
-	case '<', '>', '!':
-		if next != '=' {
-			return false
-		}
-	}
-
-	return true
 }
 
 func isOperatorChar(ch rune) bool {
