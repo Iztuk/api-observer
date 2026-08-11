@@ -41,7 +41,7 @@ func (l *Lexer) Process() ([]Token, error) {
 		case '"':
 			l.readString()
 		case '=', '<', '>', '!':
-			l.readOperation()
+			l.readOperator()
 		default:
 			if isDigit(ch) {
 				l.readNumber()
@@ -138,7 +138,106 @@ func (l *Lexer) readNumber() error {
 	return nil
 }
 
-func (l *Lexer) readOperation() {}
+func (l *Lexer) readOperator() error {
+	start := l.Position
+	ch := rune(l.Query[l.Position])
+
+	switch ch {
+	case '=':
+		l.Position++
+
+		l.Tokens = append(l.Tokens, Token{
+			Type:     TokenEqual,
+			Literal:  "=",
+			Position: start,
+		})
+
+	case '!':
+		if l.Position+1 >= len(l.Query) {
+			return newQueryError(
+				l.Query,
+				start,
+				"expected '!='",
+			)
+		}
+
+		next := rune(l.Query[l.Position+1])
+
+		if next != '=' {
+			return newQueryError(
+				l.Query,
+				start,
+				"expected '!='",
+			)
+		}
+
+		l.Position += 2
+
+		l.Tokens = append(l.Tokens, Token{
+			Type:     TokenNotEqual,
+			Literal:  "!=",
+			Position: start,
+		})
+
+	case '<':
+		l.Position++
+
+		if l.Position < len(l.Query) &&
+			l.Query[l.Position] == '=' {
+
+			l.Position++
+
+			l.Tokens = append(l.Tokens, Token{
+				Type:     TokenLessEqual,
+				Literal:  "<=",
+				Position: start,
+			})
+
+			return nil
+		}
+
+		l.Tokens = append(l.Tokens, Token{
+			Type:     TokenLess,
+			Literal:  "<",
+			Position: start,
+		})
+
+	case '>':
+		l.Position++
+
+		if l.Position < len(l.Query) &&
+			l.Query[l.Position] == '=' {
+
+			l.Position++
+
+			l.Tokens = append(l.Tokens, Token{
+				Type:     TokenGreaterEqual,
+				Literal:  ">=",
+				Position: start,
+			})
+
+			return nil
+		}
+
+		l.Tokens = append(l.Tokens, Token{
+			Type:     TokenGreater,
+			Literal:  ">",
+			Position: start,
+		})
+
+	default:
+		return newQueryError(
+			l.Query,
+			start,
+			fmt.Sprintf(
+				"invalid operator %q",
+				ch,
+			),
+		)
+	}
+
+	return nil
+}
 
 func (l *Lexer) readIdentifier() {}
 
@@ -154,6 +253,26 @@ func isAllowedChar(ch rune) bool {
 		ch == '(' ||
 		ch == ')' ||
 		ch == ' '
+}
+
+func isAllowedOperation(curr rune, next rune) bool {
+	switch curr {
+	case '<', '>', '!':
+		if next != '=' {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isOperatorChar(ch rune) bool {
+	switch ch {
+	case '=', '!', '>', '<':
+		return true
+	default:
+		return false
+	}
 }
 
 func isLetter(ch rune) bool {
