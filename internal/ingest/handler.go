@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"observer/internal/audit"
@@ -58,6 +59,15 @@ func (h *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 
 		if client.HostRules == nil {
 			client.HostRules = &audit.HostRulesDoc{}
+		}
+
+		if err := client.HostRules.CompilePatterns(); err != nil {
+			http.Error(
+				w,
+				fmt.Sprintf("invalid host rules: %v", err),
+				http.StatusBadRequest,
+			)
+			return
 		}
 
 		h.Registry.RegisterHost(client.HostName, *client.OpenAPI, *client.HostRules)

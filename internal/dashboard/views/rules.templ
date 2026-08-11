@@ -1,0 +1,243 @@
+package views
+
+import (
+	"fmt"
+	"observer/internal/audit"
+)
+
+templ RulesPage(title string, hosts []audit.RegisteredHost) {
+	@Layout(title) {
+		@RulesPageContent(hosts)
+	}
+}
+
+templ RulesPageContent(hosts []audit.RegisteredHost) {
+	<link rel="stylesheet" href="/static/rules.css"/>
+	<div class="rules-page">
+		if len(hosts) == 0 {
+			<div class="rules-empty">
+				<p>No registered applications.</p>
+			</div>
+		} else {
+			for _, host := range hosts {
+				@HostRulesSection(host)
+			}
+		}
+	</div>
+}
+
+templ HostRulesSection(host audit.RegisteredHost) {
+	<section class="host-rules-section">
+		<header class="host-rules-header">
+			<h1>{ host.HostName }</h1>
+		</header>
+		<section class="host-contract-section">
+			<h2>OpenAPI Contract</h2>
+			if host.Contract != nil {
+				@OpenAPIAccordion(host.HostName, *host.Contract)
+			} else {
+				<p class="rules-muted">
+					No OpenAPI contract registered.
+				</p>
+			}
+		</section>
+		<section class="host-rules-list-section">
+			<h2>Host Rules</h2>
+			if host.Rules == nil || len(host.Rules.Rules) == 0 {
+				<p class="rules-muted">
+					No host rules registered.
+				</p>
+			} else {
+				<div class="host-rules-list">
+					for ruleID, rule := range host.Rules.Rules {
+						@RuleAccordion(
+							host.HostName,
+							ruleID,
+							rule,
+						)
+					}
+				</div>
+			}
+		</section>
+	</section>
+}
+
+templ OpenAPIAccordion(host string, contract audit.OpenAPIDoc) {
+	<details
+    id={fmt.Sprintf("%s-openapi", host)}
+    class="contract-accordion"
+    >
+		<summary class="contract-accordion-summary">
+			<div class="contract-accordion-title">
+				<strong>Registered OpenAPI Contract</strong>
+				<p>View the application's API contract.</p>
+			</div>
+
+			<span
+				class="contract-accordion-chevron"
+				aria-hidden="true"
+			>
+				›
+			</span>
+		</summary>
+
+		<div class="contract-accordion-content">
+			<pre class="contract-document"><code>{ formatOpenAPI(contract) }</code></pre>
+		</div>
+	</details>
+}
+
+templ RuleAccordion(
+	host string,
+	ruleID string,
+	rule audit.HostRule,
+) {
+	<details
+		id={ fmt.Sprintf("%s-%s", host, ruleID) }
+		class="rule-accordion"
+	>
+		<summary class="rule-accordion-summary">
+			<div class="rule-accordion-title">
+				<div class="rule-accordion-name">
+					<strong>{ ruleID }</strong>
+					if rule.Description != "" {
+						<p>{ rule.Description }</p>
+					}
+				</div>
+				<div class="rule-accordion-meta">
+					<span class="rule-type">
+						{ string(rule.Type) }
+					</span>
+					if rule.Enabled {
+						<span class="rule-status">
+							Enabled
+						</span>
+					} else {
+						<span class="rule-status">
+							Disabled
+						</span>
+					}
+				</div>
+			</div>
+			<span
+				class="rule-accordion-chevron"
+				aria-hidden="true"
+			>
+				›
+			</span>
+		</summary>
+		<div class="rule-accordion-content">
+			<section class="rule-detail-section">
+				<h3>Applies To</h3>
+				<div class="rule-values">
+					for _, jobType := range rule.AppliesTo {
+						<code>{ string(jobType) }</code>
+					}
+				</div>
+			</section>
+			if len(rule.Match.Paths) > 0 {
+				<section class="rule-detail-section">
+					<h3>Paths</h3>
+					<div class="rule-values">
+						for _, path := range rule.Match.Paths {
+							<code>{ path }</code>
+						}
+					</div>
+				</section>
+			}
+			if len(rule.Match.Methods) > 0 {
+				<section class="rule-detail-section">
+					<h3>Methods</h3>
+					<div class="rule-values">
+						for _, method := range rule.Match.Methods {
+							<code>{ method }</code>
+						}
+					</div>
+				</section>
+			}
+			if len(rule.Match.QueryParams) > 0 {
+				<section class="rule-detail-section">
+					<h3>Query Parameters</h3>
+					@RuleMap(rule.Match.QueryParams)
+				</section>
+			}
+			if len(rule.Match.Headers) > 0 {
+				<section class="rule-detail-section">
+					<h3>Headers</h3>
+					@RuleMap(rule.Match.Headers)
+				</section>
+			}
+			if len(rule.Match.Fields) > 0 {
+				<section class="rule-detail-section">
+					<h3>Fields</h3>
+					<div class="rule-values">
+						for _, field := range rule.Match.Fields {
+							<code>{ field }</code>
+						}
+					</div>
+				</section>
+			}
+			if len(rule.Match.Patterns) > 0 {
+				<section class="rule-detail-section">
+					<h3>Patterns</h3>
+					<div class="rule-patterns">
+						for _, pattern := range rule.Match.Patterns {
+							<div class="rule-pattern">
+								<div>
+									<span>Target</span>
+									<code>
+										{ string(pattern.Target) }
+									</code>
+								</div>
+								if pattern.Name != "" {
+									<div>
+										<span>Name</span>
+										<code>
+											{ pattern.Name }
+										</code>
+									</div>
+								}
+								<div>
+									<span>Pattern</span>
+									<code>
+										{ pattern.Pattern }
+									</code>
+								</div>
+							</div>
+						}
+					</div>
+				</section>
+			}
+			<section class="rule-detail-section">
+				<h3>Finding</h3>
+				<div class="rule-finding">
+					<strong>
+						{ rule.Finding.Title }
+					</strong>
+					<p>
+						{ rule.Finding.Message }
+					</p>
+				</div>
+			</section>
+		</div>
+	</details>
+}
+
+templ RuleMap(values map[string][]string) {
+	<dl class="rule-map">
+		for name, items := range values {
+			<div>
+				<dt>{ name }</dt>
+				<dd>
+					if len(items) == 0 {
+						<code>*</code>
+					} else {
+						for _, value := range items {
+							<code>{ value }</code>
+						}
+					}
+				</dd>
+			</div>
+		}
+	</dl>
+}

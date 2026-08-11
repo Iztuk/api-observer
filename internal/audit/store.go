@@ -49,12 +49,20 @@ type AuditJob struct {
 func NewJSONLogStore() (*JSONLogStore, error) {
 	jobPath := os.Getenv("API_OBSERVER_JOB_LOG")
 	if jobPath == "" {
-		jobPath = "./logs/job.jsonl"
+		err := os.Setenv("API_OBSERVER_JOB_LOG", "./logs/jobs.jsonl")
+		if err != nil {
+			return nil, fmt.Errorf("failed to set API_OBSERVER_JOB_LOG environment variable to ./logs/jobs.jsonl")
+		}
+		jobPath = os.Getenv("API_OBSERVER_JOB_LOG")
 	}
 
 	auditPath := os.Getenv("API_OBSERVER_FINDINGS_LOG")
 	if auditPath == "" {
-		auditPath = "./logs/audit.jsonl"
+		err := os.Setenv("API_OBSERVER_FINDINGS_LOG", "./logs/findings.jsonl")
+		if err != nil {
+			return nil, fmt.Errorf("failed to set API_OBSERVER_JOB_LOG environment variable to ./logs/findings.jsonl")
+		}
+		auditPath = os.Getenv("API_OBSERVER_FINDINGS_LOG")
 	}
 
 	dir := filepath.Dir(jobPath)
@@ -145,10 +153,6 @@ func (s *JSONLogStore) SaveJob(job Job, jobID string) error {
 		jobType = string(j.JobType())
 		meta = j.Meta
 
-		// headers, err := marshalHeaders(j.Headers)
-		// if err != nil {
-		// 	return err
-		// }
 		headers = j.Headers
 
 		body = string(j.Body)
@@ -156,10 +160,6 @@ func (s *JSONLogStore) SaveJob(job Job, jobID string) error {
 		jobType = string(j.JobType())
 		meta = j.Meta
 
-		// headers, err := marshalHeaders(j.Headers)
-		// if err != nil {
-		// 	return err
-		// }
 		headers = j.Headers
 
 		body = string(j.Body)

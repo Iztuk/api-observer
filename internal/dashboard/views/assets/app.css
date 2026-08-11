@@ -1,0 +1,368 @@
+:root {
+  color-scheme: light;
+
+  --sidebar-width: 14rem;
+
+  --background: #ffffff;
+  --sidebar-background: #f7f7f7;
+  --text-color: #222222;
+  --muted-text-color: #666666;
+  --border-color: #dddddd;
+  --hover-background: #e9e9e9;
+  --overlay-background: rgb(0 0 0 / 20%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: #111111;
+  --sidebar-background: #181818;
+  --text-color: #eeeeee;
+  --muted-text-color: #aaaaaa;
+  --border-color: #333333;
+  --hover-background: #262626;
+  --overlay-background: rgb(0 0 0 / 45%);
+}
+
+/* Base */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--text-color);
+
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Application layout */
+
+.app-layout {
+  min-height: 100vh;
+}
+
+/*
+ * .page owns the viewport height.
+ *
+ * On mobile this includes:
+ *
+ * mobile header
+ * main content
+ *
+ * On desktop the mobile header disappears and main-content
+ * consumes the available height.
+ */
+.page {
+  width: 100%;
+  height: 100vh;
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  background: var(--background);
+}
+
+#main-content {
+  flex: 1;
+
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  padding: 1rem;
+
+  overflow: hidden;
+}
+
+/* Hidden sidebar checkbox */
+
+.sidebar-toggle {
+  position: fixed;
+
+  width: 1px;
+  height: 1px;
+
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Mobile header */
+
+.mobile-header {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+
+  gap: 0.75rem;
+
+  height: 3.5rem;
+  padding: 0 1rem;
+
+  background: var(--background);
+
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mobile-title,
+.sidebar-title {
+  font-weight: 600;
+}
+
+/* Hamburger */
+
+.menu-button {
+  display: grid;
+  gap: 0.25rem;
+
+  width: 2rem;
+  padding: 0.35rem;
+
+  color: var(--text-color);
+
+  cursor: pointer;
+}
+
+.menu-button span {
+  display: block;
+
+  width: 100%;
+  height: 1px;
+
+  background: currentColor;
+}
+
+/* Sidebar */
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+
+  z-index: 20;
+
+  display: flex;
+  flex-direction: column;
+
+  width: min(var(--sidebar-width), 80vw);
+  height: 100vh;
+
+  background: var(--sidebar-background);
+
+  border-right: 1px solid var(--border-color);
+
+  transform: translateX(-100%);
+
+  transition:
+    transform 150ms ease,
+    background-color 150ms ease;
+}
+
+.sidebar-header {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+
+  gap: 0.5rem;
+
+  height: 3.5rem;
+  padding: 0 1rem;
+
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-title {
+  flex: 1;
+}
+
+/* Sidebar close */
+
+.sidebar-close {
+  display: grid;
+  place-items: center;
+
+  width: 2rem;
+  height: 2rem;
+
+  color: var(--text-color);
+
+  font-size: 1.5rem;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+/* Theme toggle */
+
+.theme-toggle {
+  display: grid;
+  place-items: center;
+
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+
+  color: var(--text-color);
+  background: transparent;
+
+  border: 0;
+  border-radius: 0.25rem;
+
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background: var(--hover-background);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.theme-icon-light {
+  display: none;
+}
+
+.theme-icon-dark {
+  display: block;
+}
+
+:root[data-theme="dark"] .theme-icon-light {
+  display: block;
+}
+
+:root[data-theme="dark"] .theme-icon-dark {
+  display: none;
+}
+
+/* Sidebar navigation */
+
+.sidebar-nav {
+  display: grid;
+  gap: 0.25rem;
+
+  padding: 0.75rem;
+}
+
+.sidebar-nav a {
+  display: block;
+
+  padding: 0.65rem 0.5rem;
+
+  color: var(--muted-text-color);
+
+  border-radius: 0.25rem;
+}
+
+.sidebar-nav a:hover {
+  color: var(--text-color);
+  background: var(--hover-background);
+}
+
+.sidebar-nav a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Sidebar overlay */
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+
+  z-index: 10;
+
+  display: none;
+
+  background: var(--overlay-background);
+}
+
+.sidebar-toggle:checked ~ .app-layout .sidebar {
+  transform: translateX(0);
+}
+
+.sidebar-toggle:checked ~ .sidebar-overlay {
+  display: block;
+}
+
+/* Desktop */
+
+@media (min-width: 48rem) {
+  .app-layout {
+    display: grid;
+
+    grid-template-columns:
+      var(--sidebar-width)
+      minmax(0, 1fr);
+
+    height: 100vh;
+    min-height: 0;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+
+    width: var(--sidebar-width);
+
+    transform: none;
+  }
+
+  .page {
+    height: 100vh;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .mobile-header,
+  .sidebar-close,
+  .sidebar-overlay {
+    display: none;
+  }
+
+  #main-content {
+    padding: 1.5rem;
+  }
+}
+
+/* Reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .sidebar {
+    transition: none;
+  }
+}
