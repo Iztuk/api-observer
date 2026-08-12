@@ -16,7 +16,7 @@ const (
 	TokenNumber
 
 	TokenEqual
-	TokenNotEqual
+	TokenBang
 	TokenGreater
 	TokenGreaterEqual
 	TokenLess
@@ -25,7 +25,6 @@ const (
 	TokenAnd
 	TokenOr
 	TokenNot
-	TokenContains
 
 	TokenLeftParen
 	TokenRightParen
