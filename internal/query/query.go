@@ -303,7 +303,7 @@ func findJobFindings(
 	return items, nil
 }
 
-func ParseQuery(rawString string) error {
+func parseQuery(rawString string) (Expression, error) {
 	l := Lexer{
 		Query:    rawString,
 		Position: 0,
@@ -312,8 +312,19 @@ func ParseQuery(rawString string) error {
 
 	err := l.Process()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	p := Parser{
+		Query:         rawString,
+		Tokens:        l.Tokens,
+		TokenPosition: 0,
+	}
+
+	expr, err := p.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return expr, nil
 }

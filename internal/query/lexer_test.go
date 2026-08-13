@@ -2,589 +2,515 @@ package query
 
 import "testing"
 
-func TestReadString(t *testing.T) {
+func TestLexer(t *testing.T) {
 	tests := []struct {
-		name     string
-		query    string
-		expected string
+		name           string
+		query          string
+		expectedTokens []Token
+		wantErr        bool
 	}{
 		{
-			name:     "simple string",
-			query:    `"GET"`,
-			expected: "GET",
+			name:  "simple string comparison",
+			query: `host = "test-service"`,
+			expectedTokens: []Token{
+				{
+					Type:     TokenIdentifier,
+					Literal:  "host",
+					Position: 0,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 5,
+				},
+				{
+					Type:     TokenString,
+					Literal:  "test-service",
+					Position: 7,
+				},
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 21,
+				},
+			},
 		},
 		{
-			name:     "path string",
-			query:    `"/users"`,
-			expected: "/users",
+			name:  "number comparison",
+			query: `status >= 400`,
+			expectedTokens: []Token{
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 0,
+				},
+				{
+					Type:     TokenGreater,
+					Literal:  ">",
+					Position: 7,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 8,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "400",
+					Position: 10,
+				},
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 13,
+				},
+			},
 		},
 		{
-			name:     "string with spaces",
-			query:    `"hello world"`,
-			expected: "hello world",
+			name:  "not equal comparison",
+			query: `status != 200`,
+			expectedTokens: []Token{
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 0,
+				},
+				{
+					Type:     TokenBang,
+					Literal:  "!",
+					Position: 7,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 8,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "200",
+					Position: 10,
+				},
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 13,
+				},
+			},
 		},
 		{
-			name:     "empty string",
-			query:    `""`,
-			expected: "",
+			name:  "and expression",
+			query: `status >= 400 AND findings > 0`,
+			expectedTokens: []Token{
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 0,
+				},
+				{
+					Type:     TokenGreater,
+					Literal:  ">",
+					Position: 7,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 8,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "400",
+					Position: 10,
+				},
+				{
+					Type:     TokenAnd,
+					Literal:  "AND",
+					Position: 14,
+				},
+				{
+					Type:     TokenIdentifier,
+					Literal:  "findings",
+					Position: 18,
+				},
+				{
+					Type:     TokenGreater,
+					Literal:  ">",
+					Position: 27,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "0",
+					Position: 29,
+				},
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 30,
+				},
+			},
+		},
+		{
+			name:  "or expression",
+			query: `status = 404 OR status = 500`,
+			expectedTokens: []Token{
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 0,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 7,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "404",
+					Position: 9,
+				},
+				{
+					Type:     TokenOr,
+					Literal:  "OR",
+					Position: 13,
+				},
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 16,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 23,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "500",
+					Position: 25,
+				},
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 28,
+				},
+			},
+		},
+		{
+			name:  "not expression",
+			query: `NOT status = 200`,
+			expectedTokens: []Token{
+				{
+					Type:     TokenNot,
+					Literal:  "NOT",
+					Position: 0,
+				},
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 4,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 11,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "200",
+					Position: 13,
+				},
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 16,
+				},
+			},
+		},
+		{
+			name:  "grouped expression",
+			query: `(status = 400)`,
+			expectedTokens: []Token{
+				{
+					Type:     TokenLeftParen,
+					Literal:  "(",
+					Position: 0,
+				},
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 1,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 8,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "400",
+					Position: 10,
+				},
+				{
+					Type:     TokenRightParen,
+					Literal:  ")",
+					Position: 13,
+				},
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 14,
+				},
+			},
+		},
+		{
+			name:  "nested grouping",
+			query: `(status = 1 OR status = 2)`,
+			expectedTokens: []Token{
+				{
+					Type:     TokenLeftParen,
+					Literal:  "(",
+					Position: 0,
+				},
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 1,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 8,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "1",
+					Position: 10,
+				},
+				{
+					Type:     TokenOr,
+					Literal:  "OR",
+					Position: 12,
+				},
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 15,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 22,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "2",
+					Position: 24,
+				},
+				{
+					Type:     TokenRightParen,
+					Literal:  ")",
+					Position: 25,
+				},
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 26,
+				},
+			},
+		},
+		{
+			name:  "identifier with underscore and number",
+			query: `request_id2 = "test"`,
+			expectedTokens: []Token{
+				{
+					Type:     TokenIdentifier,
+					Literal:  "request_id2",
+					Position: 0,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 12,
+				},
+				{
+					Type:     TokenString,
+					Literal:  "test",
+					Position: 14,
+				},
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 20,
+				},
+			},
+		},
+		{
+			name:  "keywords are case insensitive",
+			query: `status = 1 and status = 2 Or NOT findings = 0`,
+			expectedTokens: []Token{
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 0,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 7,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "1",
+					Position: 9,
+				},
+				{
+					Type:     TokenAnd,
+					Literal:  "and",
+					Position: 11,
+				},
+				{
+					Type:     TokenIdentifier,
+					Literal:  "status",
+					Position: 15,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 22,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "2",
+					Position: 24,
+				},
+				{
+					Type:     TokenOr,
+					Literal:  "Or",
+					Position: 26,
+				},
+				{
+					Type:     TokenNot,
+					Literal:  "NOT",
+					Position: 29,
+				},
+				{
+					Type:     TokenIdentifier,
+					Literal:  "findings",
+					Position: 33,
+				},
+				{
+					Type:     TokenEqual,
+					Literal:  "=",
+					Position: 42,
+				},
+				{
+					Type:     TokenNumber,
+					Literal:  "0",
+					Position: 44,
+				},
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 45,
+				},
+			},
+		},
+		{
+			name:  "empty query produces eof",
+			query: "",
+			expectedTokens: []Token{
+				{
+					Type:     TokenEOF,
+					Literal:  "",
+					Position: 0,
+				},
+			},
+		},
+		{
+			name:    "invalid character",
+			query:   `status @ 400`,
+			wantErr: true,
+		},
+		{
+			name:    "unterminated string",
+			query:   `host = "test-service`,
+			wantErr: true,
+		},
+		{
+			name:    "decimal number is invalid",
+			query:   `status = 400.5`,
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lexer := Lexer{
-				Query: tt.query,
+				Query:  tt.query,
+				Tokens: make([]Token, 0),
 			}
 
-			lexer.readString()
-
-			if len(lexer.Tokens) != 1 {
-				t.Fatalf(
-					"expected 1 token, got %d",
-					len(lexer.Tokens),
-				)
-			}
-
-			got := lexer.Tokens[0]
-
-			if got.Type != TokenString {
-				t.Errorf(
-					"expected token type %v, got %v",
-					TokenString,
-					got.Type,
-				)
-			}
-
-			if got.Literal != tt.expected {
-				t.Errorf(
-					"expected literal %q, got %q",
-					tt.expected,
-					got.Literal,
-				)
-			}
-		})
-	}
-}
-
-func TestReadNumber(t *testing.T) {
-	tests := []struct {
-		name             string
-		query            string
-		startPosition    int
-		expectedLiteral  string
-		expectedPosition int
-		wantErr          bool
-	}{
-		{
-			name:             "integer",
-			query:            "400",
-			startPosition:    0,
-			expectedLiteral:  "400",
-			expectedPosition: 3,
-		},
-		{
-			name:             "integer followed by space",
-			query:            "400 host",
-			startPosition:    0,
-			expectedLiteral:  "400",
-			expectedPosition: 3,
-		},
-		{
-			name:             "integer followed by identifier",
-			query:            "400host",
-			startPosition:    0,
-			expectedLiteral:  "400",
-			expectedPosition: 3,
-		},
-		{
-			name:             "integer inside query",
-			query:            `status=400host="test-service"`,
-			startPosition:    7,
-			expectedLiteral:  "400",
-			expectedPosition: 10,
-		},
-		{
-			name:          "decimal is not allowed",
-			query:         "400.5",
-			startPosition: 0,
-			wantErr:       true,
-		},
-		{
-			name:          "invalid character",
-			query:         "400@",
-			startPosition: 0,
-			wantErr:       true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lexer := Lexer{
-				Query:    tt.query,
-				Position: tt.startPosition,
-			}
-
-			err := lexer.readNumber()
+			err := lexer.Process()
 
 			if tt.wantErr {
 				if err == nil {
-					t.Fatal("expected error, got nil")
+					t.Fatal("expected lexer error, got nil")
 				}
 
 				return
 			}
 
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if len(lexer.Tokens) != 1 {
 				t.Fatalf(
-					"expected 1 token, got %d",
+					"unexpected lexer error: %v",
+					err,
+				)
+			}
+
+			if len(lexer.Tokens) != len(tt.expectedTokens) {
+				t.Fatalf(
+					"expected %d tokens, got %d\nexpected: %#v\ngot: %#v",
+					len(tt.expectedTokens),
 					len(lexer.Tokens),
+					tt.expectedTokens,
+					lexer.Tokens,
 				)
 			}
 
-			token := lexer.Tokens[0]
+			for i, expected := range tt.expectedTokens {
+				actual := lexer.Tokens[i]
 
-			if token.Type != TokenNumber {
-				t.Errorf(
-					"expected TokenNumber, got %v",
-					token.Type,
-				)
-			}
-
-			if token.Literal != tt.expectedLiteral {
-				t.Errorf(
-					"expected literal %q, got %q",
-					tt.expectedLiteral,
-					token.Literal,
-				)
-			}
-
-			if token.Position != tt.startPosition {
-				t.Errorf(
-					"expected token position %d, got %d",
-					tt.startPosition,
-					token.Position,
-				)
-			}
-
-			if lexer.Position != tt.expectedPosition {
-				t.Errorf(
-					"expected lexer position %d, got %d",
-					tt.expectedPosition,
-					lexer.Position,
-				)
-			}
-		})
-	}
-}
-
-func TestReadOperation(t *testing.T) {
-	tests := []struct {
-		name             string
-		query            string
-		startPosition    int
-		expectedType     TokenType
-		expectedLiteral  string
-		expectedPosition int
-		wantErr          bool
-	}{
-		{
-			name:             "equal",
-			query:            "=",
-			startPosition:    0,
-			expectedType:     TokenEqual,
-			expectedLiteral:  "=",
-			expectedPosition: 1,
-		},
-		{
-			name:             "bang",
-			query:            "!",
-			startPosition:    0,
-			expectedType:     TokenBang,
-			expectedLiteral:  "!",
-			expectedPosition: 1,
-		},
-		{
-			name:             "less than",
-			query:            "<",
-			startPosition:    0,
-			expectedType:     TokenLess,
-			expectedLiteral:  "<",
-			expectedPosition: 1,
-		},
-		{
-			name:             "greater than",
-			query:            ">",
-			startPosition:    0,
-			expectedType:     TokenGreater,
-			expectedLiteral:  ">",
-			expectedPosition: 1,
-		},
-		{
-			name:             "not equal reads bang only",
-			query:            "!=",
-			startPosition:    0,
-			expectedType:     TokenBang,
-			expectedLiteral:  "!",
-			expectedPosition: 1,
-		},
-		{
-			name:             "less than or equal reads less only",
-			query:            "<=",
-			startPosition:    0,
-			expectedType:     TokenLess,
-			expectedLiteral:  "<",
-			expectedPosition: 1,
-		},
-		{
-			name:             "greater than or equal reads greater only",
-			query:            ">=",
-			startPosition:    0,
-			expectedType:     TokenGreater,
-			expectedLiteral:  ">",
-			expectedPosition: 1,
-		},
-		{
-			name:             "operator inside query",
-			query:            `status>=400`,
-			startPosition:    6,
-			expectedType:     TokenGreater,
-			expectedLiteral:  ">",
-			expectedPosition: 7,
-		},
-		{
-			name:             "equal inside query",
-			query:            `host="test-service"`,
-			startPosition:    4,
-			expectedType:     TokenEqual,
-			expectedLiteral:  "=",
-			expectedPosition: 5,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lexer := Lexer{
-				Query:    tt.query,
-				Position: tt.startPosition,
-			}
-
-			err := lexer.readOperator()
-
-			if tt.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
+				if actual.Type != expected.Type {
+					t.Errorf(
+						"token %d: expected type %v, got %v",
+						i,
+						expected.Type,
+						actual.Type,
+					)
 				}
 
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if len(lexer.Tokens) != 1 {
-				t.Fatalf(
-					"expected 1 token, got %d",
-					len(lexer.Tokens),
-				)
-			}
-
-			token := lexer.Tokens[0]
-
-			if token.Type != tt.expectedType {
-				t.Errorf(
-					"expected token type %v, got %v",
-					tt.expectedType,
-					token.Type,
-				)
-			}
-
-			if token.Literal != tt.expectedLiteral {
-				t.Errorf(
-					"expected literal %q, got %q",
-					tt.expectedLiteral,
-					token.Literal,
-				)
-			}
-
-			if token.Position != tt.startPosition {
-				t.Errorf(
-					"expected token position %d, got %d",
-					tt.startPosition,
-					token.Position,
-				)
-			}
-
-			if lexer.Position != tt.expectedPosition {
-				t.Errorf(
-					"expected lexer position %d, got %d",
-					tt.expectedPosition,
-					lexer.Position,
-				)
-			}
-		})
-	}
-}
-
-func TestReadDelimiter(t *testing.T) {
-	tests := []struct {
-		name             string
-		query            string
-		startPosition    int
-		expectedType     TokenType
-		expectedLiteral  string
-		expectedPosition int
-		wantErr          bool
-	}{
-		{
-			name:             "left parenthesis",
-			query:            "(",
-			startPosition:    0,
-			expectedType:     TokenLeftParen,
-			expectedLiteral:  "(",
-			expectedPosition: 1,
-		},
-		{
-			name:             "right parenthesis",
-			query:            ")",
-			startPosition:    0,
-			expectedType:     TokenRightParen,
-			expectedLiteral:  ")",
-			expectedPosition: 1,
-		},
-		{
-			name:             "left parenthesis inside query",
-			query:            `status=400 AND (host="test-service")`,
-			startPosition:    15,
-			expectedType:     TokenLeftParen,
-			expectedLiteral:  "(",
-			expectedPosition: 16,
-		},
-		{
-			name:             "right parenthesis inside query",
-			query:            `(status=400)`,
-			startPosition:    11,
-			expectedType:     TokenRightParen,
-			expectedLiteral:  ")",
-			expectedPosition: 12,
-		},
-		{
-			name:          "invalid delimiter",
-			query:         "[",
-			startPosition: 0,
-			wantErr:       true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lexer := Lexer{
-				Query:    tt.query,
-				Position: tt.startPosition,
-			}
-
-			err := lexer.readDelimiter()
-
-			if tt.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
+				if actual.Literal != expected.Literal {
+					t.Errorf(
+						"token %d: expected literal %q, got %q",
+						i,
+						expected.Literal,
+						actual.Literal,
+					)
 				}
 
-				return
+				if actual.Position != expected.Position {
+					t.Errorf(
+						"token %d: expected position %d, got %d",
+						i,
+						expected.Position,
+						actual.Position,
+					)
+				}
 			}
 
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if len(lexer.Tokens) != 1 {
-				t.Fatalf(
-					"expected 1 token, got %d",
-					len(lexer.Tokens),
-				)
-			}
-
-			token := lexer.Tokens[0]
-
-			if token.Type != tt.expectedType {
-				t.Errorf(
-					"expected token type %v, got %v",
-					tt.expectedType,
-					token.Type,
-				)
-			}
-
-			if token.Literal != tt.expectedLiteral {
-				t.Errorf(
-					"expected literal %q, got %q",
-					tt.expectedLiteral,
-					token.Literal,
-				)
-			}
-
-			if token.Position != tt.startPosition {
-				t.Errorf(
-					"expected token position %d, got %d",
-					tt.startPosition,
-					token.Position,
-				)
-			}
-
-			if lexer.Position != tt.expectedPosition {
+			if lexer.Position != len(tt.query) {
 				t.Errorf(
 					"expected lexer position %d, got %d",
-					tt.expectedPosition,
-					lexer.Position,
-				)
-			}
-		})
-	}
-}
-
-func TestReadIdentifier(t *testing.T) {
-	tests := []struct {
-		name             string
-		query            string
-		startPosition    int
-		expectedType     TokenType
-		expectedLiteral  string
-		expectedPosition int
-	}{
-		{
-			name:             "host identifier",
-			query:            "host",
-			startPosition:    0,
-			expectedType:     TokenIdentifier,
-			expectedLiteral:  "host",
-			expectedPosition: 4,
-		},
-		{
-			name:             "arbitrary identifier",
-			query:            "banana",
-			startPosition:    0,
-			expectedType:     TokenIdentifier,
-			expectedLiteral:  "banana",
-			expectedPosition: 6,
-		},
-		{
-			name:             "identifier with underscore",
-			query:            "request_id",
-			startPosition:    0,
-			expectedType:     TokenIdentifier,
-			expectedLiteral:  "request_id",
-			expectedPosition: 10,
-		},
-		{
-			name:             "identifier with number",
-			query:            "field123",
-			startPosition:    0,
-			expectedType:     TokenIdentifier,
-			expectedLiteral:  "field123",
-			expectedPosition: 8,
-		},
-		{
-			name:             "and keyword",
-			query:            "AND",
-			startPosition:    0,
-			expectedType:     TokenAnd,
-			expectedLiteral:  "AND",
-			expectedPosition: 3,
-		},
-		{
-			name:             "or keyword",
-			query:            "OR",
-			startPosition:    0,
-			expectedType:     TokenOr,
-			expectedLiteral:  "OR",
-			expectedPosition: 2,
-		},
-		{
-			name:             "not keyword",
-			query:            "NOT",
-			startPosition:    0,
-			expectedType:     TokenNot,
-			expectedLiteral:  "NOT",
-			expectedPosition: 3,
-		},
-		{
-			name:             "lowercase keyword",
-			query:            "and",
-			startPosition:    0,
-			expectedType:     TokenAnd,
-			expectedLiteral:  "and",
-			expectedPosition: 3,
-		},
-		{
-			name:             "identifier before operator",
-			query:            "status>=400",
-			startPosition:    0,
-			expectedType:     TokenIdentifier,
-			expectedLiteral:  "status",
-			expectedPosition: 6,
-		},
-		{
-			name:             "identifier after number",
-			query:            `400host="test-service"`,
-			startPosition:    3,
-			expectedType:     TokenIdentifier,
-			expectedLiteral:  "host",
-			expectedPosition: 7,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lexer := Lexer{
-				Query:    tt.query,
-				Position: tt.startPosition,
-			}
-
-			err := lexer.readIdentifier()
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if len(lexer.Tokens) != 1 {
-				t.Fatalf(
-					"expected 1 token, got %d",
-					len(lexer.Tokens),
-				)
-			}
-
-			token := lexer.Tokens[0]
-
-			if token.Type != tt.expectedType {
-				t.Errorf(
-					"expected token type %v, got %v",
-					tt.expectedType,
-					token.Type,
-				)
-			}
-
-			if token.Literal != tt.expectedLiteral {
-				t.Errorf(
-					"expected literal %q, got %q",
-					tt.expectedLiteral,
-					token.Literal,
-				)
-			}
-
-			if token.Position != tt.startPosition {
-				t.Errorf(
-					"expected token position %d, got %d",
-					tt.startPosition,
-					token.Position,
-				)
-			}
-
-			if lexer.Position != tt.expectedPosition {
-				t.Errorf(
-					"expected lexer position %d, got %d",
-					tt.expectedPosition,
+					len(tt.query),
 					lexer.Position,
 				)
 			}

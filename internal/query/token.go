@@ -18,9 +18,7 @@ const (
 	TokenEqual
 	TokenBang
 	TokenGreater
-	TokenGreaterEqual
 	TokenLess
-	TokenLessEqual
 
 	TokenAnd
 	TokenOr
@@ -58,6 +56,7 @@ type Field struct {
 }
 
 type Operator struct {
+	Name string
 	Type OperatorType
 }
 
@@ -66,15 +65,15 @@ type Value struct {
 	Type  ValueType
 }
 
-type FieldName int
+type FieldName string
 
 const (
-	FieldNameHost FieldName = iota
-	FielNameMethod
-	FieldNamePath
-	FieldNameStatus
-	FieldNameTimestamp
-	FieldNameFindings
+	FieldNameHost      FieldName = "host"
+	FielNameMethod     FieldName = "method"
+	FieldNamePath      FieldName = "path"
+	FieldNameStatus    FieldName = "status"
+	FieldNameTimestamp FieldName = "timestamp"
+	FieldNameFindings  FieldName = "findings"
 )
 
 type FieldType int

@@ -7,7 +7,7 @@ import (
 
 type Lexer struct {
 	Query    string
-	Position int
+	Position int // Refers to the character position in the query string
 	Tokens   []Token
 }
 
