@@ -5,13 +5,13 @@ import (
 	"observer/internal/query"
 )
 
-templ LogExplorerPage(title string, logs query.LogPage) {
+templ LogExplorerPage(title, queryString string) {
 	@Layout(title) {
-		@LogExplorerPageContent(logs)
+		@LogExplorerPageContent(queryString)
 	}
 }
 
-templ LogExplorerPageContent(logs query.LogPage) {
+templ LogExplorerPageContent(queryString string) {
 	<link rel="stylesheet" href="/static/log-explorer.css"/>
 	<header class="page-header">
 		<h1>Log Explorer</h1>
@@ -20,7 +20,7 @@ templ LogExplorerPageContent(logs query.LogPage) {
 	@LogExplorerQuery()
 	<div class="log-explorer-layout">
 		<div class="log-explorer-main">
-			@LogExplorerTable(logs, 25)
+			@LogExplorerTable(queryString)
 		</div>
 		<div id="log-explorer-details"></div>
 	</div>
@@ -58,7 +58,7 @@ templ LogExplorerQuery() {
 	</div>
 }
 
-templ LogExplorerTable(logs query.LogPage, limit int) {
+templ LogExplorerTable(queryString string) {
 	<div class="log-table-wrapper">
 		<div
 			id="log-loading"
@@ -84,7 +84,7 @@ templ LogExplorerTable(logs query.LogPage, limit int) {
 			<tbody
 				id="log-explorer-table-body"
 				hx-trigger="load"
-				hx-get={ fmt.Sprintf("/logs?cursor=0&limit=%d", limit) }
+				hx-get={ fmt.Sprintf("/logs?query=%s&cursor=0&limit=25", queryString) }
 				hx-indicator="#log-loading"
 			></tbody>
 		</table>
@@ -93,6 +93,7 @@ templ LogExplorerTable(logs query.LogPage, limit int) {
 
 templ LogExplorerTableRows(
 	items []query.LogItem,
+    queryString string,
 	cursor query.LogCursor,
 	limit int,
 ) {
@@ -143,7 +144,8 @@ templ LogExplorerTableRows(
 			class="log-load-more"
 			hx-trigger="revealed"
 			hx-get={ fmt.Sprintf(
-				"/logs?cursor=%d&limit=%d",
+				"/logs?query=%s&cursor=%d&limit=%d",
+                queryString,
 				cursor,
 				limit,
 			) }

@@ -32,13 +32,6 @@ func findingRuleHref(
 	host string,
 	ruleID string,
 ) string {
-
-	fmt.Printf(
-		"ruleID=%q openapi=%t\n",
-		ruleID,
-		isOpenAPIContractRule(audit.RuleID(ruleID)),
-	)
-
 	if isOpenAPIContractRule(audit.RuleID(ruleID)) {
 		return fmt.Sprintf(
 			"/rules#%s-openapi",

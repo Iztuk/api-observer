@@ -7,6 +7,10 @@ import (
 )
 
 func evaluateExpression(expr Expression, item LogItem) (bool, error) {
+	if expr == nil {
+		return true, nil
+	}
+
 	switch expr := expr.(type) {
 	case ComparisonExpression:
 		return evaluateComparison(expr, item)

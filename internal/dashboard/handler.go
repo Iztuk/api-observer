@@ -30,17 +30,10 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (h *Handler) LogExplorerPage(w http.ResponseWriter, r *http.Request) {
-	logs, err := GetLogs(r.Context(), 0, 100)
-	if err != nil {
-		http.Error(
-			w,
-			fmt.Sprintf("Unable to fetch logs. %s", err.Error()),
-			http.StatusInternalServerError,
-		)
-		return
-	}
+	queryParams := r.URL.Query()
+	queryString := queryParams.Get("query")
 
-	if err := views.LogExplorerPage("Log Explorer", logs).Render(r.Context(), w); err != nil {
+	if err := views.LogExplorerPage("Log Explorer", queryString).Render(r.Context(), w); err != nil {
 		http.Error(
 			w,
 			"Unable to render log explorer page.",
@@ -57,12 +50,15 @@ func (h *Handler) GetLogExplorerLogs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cursor = 0
 	}
+
 	limit, err := strconv.Atoi(queryParams.Get("limit"))
 	if err != nil {
-		limit = 10
+		limit = 25
 	}
 
-	logs, err := GetLogs(r.Context(), int64(cursor), limit)
+	queryString := queryParams.Get("query")
+
+	logs, err := GetLogs(r.Context(), queryString, int64(cursor), limit)
 	if err != nil {
 		http.Error(
 			w,
@@ -72,7 +68,7 @@ func (h *Handler) GetLogExplorerLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := views.LogExplorerTableRows(logs.Items, logs.Cursor, limit).Render(r.Context(), w); err != nil {
+	if err := views.LogExplorerTableRows(logs.Items, queryString, logs.Cursor, limit).Render(r.Context(), w); err != nil {
 		http.Error(
 			w,
 			"Unable to render logs.",
