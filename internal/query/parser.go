@@ -150,7 +150,8 @@ func (p *Parser) parseComparison() (Expression, error) {
 
 	return ComparisonExpression{
 		Field: Field{
-			Name: FieldName(fieldToken.Literal),
+			Name:     FieldName(fieldToken.Literal),
+			Position: fieldToken.Position,
 		},
 		Operator: operator,
 		Value:    value,
@@ -165,8 +166,9 @@ func (p *Parser) parseOperator() (Operator, error) {
 		p.advance()
 
 		return Operator{
-			Name: "=",
-			Type: OperatorTypeEqual,
+			Name:     "=",
+			Type:     OperatorTypeEqual,
+			Position: token.Position,
 		}, nil
 
 	case TokenGreater:
@@ -176,14 +178,16 @@ func (p *Parser) parseOperator() (Operator, error) {
 			p.advance()
 
 			return Operator{
-				Name: ">=",
-				Type: OperatorTypeGreaterEqual,
+				Name:     ">=",
+				Type:     OperatorTypeGreaterEqual,
+				Position: token.Position,
 			}, nil
 		}
 
 		return Operator{
-			Name: ">",
-			Type: OperatorTypeGreater,
+			Name:     ">",
+			Type:     OperatorTypeGreater,
+			Position: token.Position,
 		}, nil
 
 	case TokenLess:
@@ -193,14 +197,16 @@ func (p *Parser) parseOperator() (Operator, error) {
 			p.advance()
 
 			return Operator{
-				Name: "<=",
-				Type: OperatorTypeLessEqual,
+				Name:     "<=",
+				Type:     OperatorTypeLessEqual,
+				Position: token.Position,
 			}, nil
 		}
 
 		return Operator{
-			Name: "<",
-			Type: OperatorTypeLess,
+			Name:     "<",
+			Type:     OperatorTypeLess,
+			Position: token.Position,
 		}, nil
 
 	case TokenBang:
@@ -210,8 +216,9 @@ func (p *Parser) parseOperator() (Operator, error) {
 			p.advance()
 
 			return Operator{
-				Name: "!=",
-				Type: OperatorTypeNotEqual,
+				Name:     "!=",
+				Type:     OperatorTypeNotEqual,
+				Position: token.Position,
 			}, nil
 		} else {
 			return Operator{}, newQueryError(
@@ -238,8 +245,9 @@ func (p *Parser) parseValue() (Value, error) {
 		p.advance()
 
 		return Value{
-			Value: token.Literal,
-			Type:  ValueTypeString,
+			Value:    token.Literal,
+			Type:     ValueTypeString,
+			Position: token.Position,
 		}, nil
 
 	case TokenNumber:
@@ -255,14 +263,15 @@ func (p *Parser) parseValue() (Value, error) {
 		}
 
 		return Value{
-			Value: value,
-			Type:  ValueTypeNumber,
+			Value:    value,
+			Type:     ValueTypeNumber,
+			Position: token.Position,
 		}, nil
 
 	default:
 		return Value{}, newQueryError(
 			p.Query,
-			p.TokenPosition,
+			token.Position,
 			"expected string or number",
 		)
 	}

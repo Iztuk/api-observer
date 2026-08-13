@@ -6,17 +6,29 @@ import (
 	"time"
 )
 
-func evaluateExpression(expr Expression, item LogItem) (bool, error) {
+func evaluateExpression(
+	queryString string,
+	expr Expression,
+	item LogItem,
+) (bool, error) {
 	if expr == nil {
 		return true, nil
 	}
 
 	switch expr := expr.(type) {
 	case ComparisonExpression:
-		return evaluateComparison(expr, item)
+		return evaluateComparison(
+			queryString,
+			expr,
+			item,
+		)
 
 	case AndExpression:
-		left, err := evaluateExpression(expr.Left, item)
+		left, err := evaluateExpression(
+			queryString,
+			expr.Left,
+			item,
+		)
 		if err != nil {
 			return false, err
 		}
@@ -25,10 +37,18 @@ func evaluateExpression(expr Expression, item LogItem) (bool, error) {
 			return false, nil
 		}
 
-		return evaluateExpression(expr.Right, item)
+		return evaluateExpression(
+			queryString,
+			expr.Right,
+			item,
+		)
 
 	case OrExpression:
-		left, err := evaluateExpression(expr.Left, item)
+		left, err := evaluateExpression(
+			queryString,
+			expr.Left,
+			item,
+		)
 		if err != nil {
 			return false, err
 		}
@@ -37,92 +57,186 @@ func evaluateExpression(expr Expression, item LogItem) (bool, error) {
 			return true, nil
 		}
 
-		return evaluateExpression(expr.Right, item)
+		return evaluateExpression(
+			queryString,
+			expr.Right,
+			item,
+		)
 
 	case NotExpression:
-		result, err := evaluateExpression(expr.Expression, item)
+		result, err := evaluateExpression(
+			queryString,
+			expr.Expression,
+			item,
+		)
 		if err != nil {
 			return false, err
 		}
+
 		return !result, nil
 	}
 
-	return false, fmt.Errorf("unknown expression type %T", expr)
+	return false, fmt.Errorf(
+		"unknown expression type %T",
+		expr,
+	)
 }
 
-func evaluateComparison(expr ComparisonExpression, item LogItem) (bool, error) {
+func evaluateComparison(
+	queryString string,
+	expr ComparisonExpression,
+	item LogItem,
+) (bool, error) {
 	switch expr.Field.Name {
 	case "host":
-		return evaluateHostField(expr, item)
+		return evaluateHostField(
+			queryString,
+			expr,
+			item,
+		)
 
 	case "method":
-		return evaluateMethod(expr, item)
+		return evaluateMethod(
+			queryString,
+			expr,
+			item,
+		)
 
 	case "path":
-		return evaluatePath(expr, item)
+		return evaluatePath(
+			queryString,
+			expr,
+			item,
+		)
 
 	case "status":
-		return evaluateStatus(expr, item)
+		return evaluateStatus(
+			queryString,
+			expr,
+			item,
+		)
 
 	case "timestamp":
-		return evaluateTimestamp(expr, item)
+		return evaluateTimestamp(
+			queryString,
+			expr,
+			item,
+		)
 
 	case "findings":
-		return evaluateFindingsCount(expr, item)
+		return evaluateFindingsCount(
+			queryString,
+			expr,
+			item,
+		)
 
 	default:
-		return false, fmt.Errorf(
-			"unsupported field %q",
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Field.Position,
+			fmt.Sprintf(
+				"unsupported field %q",
+				expr.Field.Name,
+			),
 		)
 	}
 }
 
-func evaluateHostField(expr ComparisonExpression, item LogItem) (bool, error) {
+func evaluateHostField(
+	queryString string,
+	expr ComparisonExpression,
+	item LogItem,
+) (bool, error) {
+	expected, ok := expr.Value.Value.(string)
+	if !ok {
+		return false, newQueryError(
+			queryString,
+			expr.Value.Position,
+			fmt.Sprintf(
+				"field %q requires a string value",
+				expr.Field.Name,
+			),
+		)
+	}
+
 	switch expr.Operator.Type {
 	case OperatorTypeEqual:
-		return (expr.Value.Value == item.Job.Host), nil
+		return item.Job.Host == expected, nil
 
 	case OperatorTypeNotEqual:
-		return (expr.Value.Value != item.Job.Host), nil
+		return item.Job.Host != expected, nil
 
 	default:
-		return false, fmt.Errorf(
-			"operator %q is not supported for field %q; allowed operators are = and !=",
-			expr.Operator.Name,
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Operator.Position,
+			fmt.Sprintf(
+				"operator %q is not supported for field %q; allowed operators are = and !=",
+				expr.Operator.Name,
+				expr.Field.Name,
+			),
 		)
 	}
 }
 
-func evaluateMethod(expr ComparisonExpression, item LogItem) (bool, error) {
+func evaluateMethod(
+	queryString string,
+	expr ComparisonExpression,
+	item LogItem,
+) (bool, error) {
+	expected, ok := expr.Value.Value.(string)
+	if !ok {
+		return false, newQueryError(
+			queryString,
+			expr.Value.Position,
+			fmt.Sprintf(
+				"field %q requires a string value",
+				expr.Field.Name,
+			),
+		)
+	}
+
 	switch expr.Operator.Type {
 	case OperatorTypeEqual:
-		return (expr.Value.Value == item.Job.Method), nil
+		return item.Job.Method == expected, nil
 
 	case OperatorTypeNotEqual:
-		return (expr.Value.Value != item.Job.Method), nil
+		return item.Job.Method != expected, nil
 
 	default:
-		return false, fmt.Errorf(
-			"operator %q is not supported for field %q; allowed operators are = and !=",
-			expr.Operator.Name,
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Operator.Position,
+			fmt.Sprintf(
+				"operator %q is not supported for field %q; allowed operators are = and !=",
+				expr.Operator.Name,
+				expr.Field.Name,
+			),
 		)
 	}
 }
 
 func evaluatePath(
-	expr ComparisonExpression, item LogItem) (bool, error) {
+	queryString string,
+	expr ComparisonExpression,
+	item LogItem,
+) (bool, error) {
 	expected, ok := expr.Value.Value.(string)
 	if !ok {
-		return false, fmt.Errorf(
-			"field %q requires a string value",
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Value.Position,
+			fmt.Sprintf(
+				"field %q requires a string value",
+				expr.Field.Name,
+			),
 		)
 	}
 
-	matches := pathMatches(expected, item.Job.Path)
+	matches := pathMatches(
+		expected,
+		item.Job.Path,
+	)
 
 	switch expr.Operator.Type {
 	case OperatorTypeEqual:
@@ -132,10 +246,14 @@ func evaluatePath(
 		return !matches, nil
 
 	default:
-		return false, fmt.Errorf(
-			"operator %q is not supported for field %q; allowed operators are '=' and '!='",
-			expr.Operator.Name,
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Operator.Position,
+			fmt.Sprintf(
+				"operator %q is not supported for field %q; allowed operators are '=' and '!='",
+				expr.Operator.Name,
+				expr.Field.Name,
+			),
 		)
 	}
 }
@@ -184,12 +302,20 @@ func isPathParameter(segment string) bool {
 		segment[len(segment)-1] == '}'
 }
 
-func evaluateStatus(expr ComparisonExpression, item LogItem) (bool, error) {
+func evaluateStatus(
+	queryString string,
+	expr ComparisonExpression,
+	item LogItem,
+) (bool, error) {
 	expected, ok := expr.Value.Value.(int)
 	if !ok {
-		return false, fmt.Errorf(
-			"field %q requires a numeric value",
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Value.Position,
+			fmt.Sprintf(
+				"field %q requires a numeric value",
+				expr.Field.Name,
+			),
 		)
 	}
 
@@ -215,20 +341,32 @@ func evaluateStatus(expr ComparisonExpression, item LogItem) (bool, error) {
 		return actual <= expected, nil
 
 	default:
-		return false, fmt.Errorf(
-			"operator %q is not supported for field %q; allowed operators are '=', '!=', '>', '>=', '<', '<='",
-			expr.Operator.Name,
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Operator.Position,
+			fmt.Sprintf(
+				"operator %q is not supported for field %q; allowed operators are '=', '!=', '>', '>=', '<', '<='",
+				expr.Operator.Name,
+				expr.Field.Name,
+			),
 		)
 	}
 }
 
-func evaluateTimestamp(expr ComparisonExpression, item LogItem) (bool, error) {
+func evaluateTimestamp(
+	queryString string,
+	expr ComparisonExpression,
+	item LogItem,
+) (bool, error) {
 	expectedRaw, ok := expr.Value.Value.(string)
 	if !ok {
-		return false, fmt.Errorf(
-			"field %q requires an RFC3339 timestamp string",
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Value.Position,
+			fmt.Sprintf(
+				"field %q requires an RFC3339 timestamp string",
+				expr.Field.Name,
+			),
 		)
 	}
 
@@ -237,11 +375,14 @@ func evaluateTimestamp(expr ComparisonExpression, item LogItem) (bool, error) {
 		expectedRaw,
 	)
 	if err != nil {
-		return false, fmt.Errorf(
-			"invalid timestamp %q for field %q: %w",
-			expectedRaw,
-			expr.Field.Name,
-			err,
+		return false, newQueryError(
+			queryString,
+			expr.Value.Position,
+			fmt.Sprintf(
+				"invalid timestamp %q for field %q",
+				expectedRaw,
+				expr.Field.Name,
+			),
 		)
 	}
 
@@ -279,20 +420,32 @@ func evaluateTimestamp(expr ComparisonExpression, item LogItem) (bool, error) {
 			actual.Equal(expected), nil
 
 	default:
-		return false, fmt.Errorf(
-			"operator %q is not supported for field %q; allowed operators are '=', '!=', '>', '>=', '<', '<='",
-			expr.Operator.Name,
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Operator.Position,
+			fmt.Sprintf(
+				"operator %q is not supported for field %q; allowed operators are '=', '!=', '>', '>=', '<', '<='",
+				expr.Operator.Name,
+				expr.Field.Name,
+			),
 		)
 	}
 }
 
-func evaluateFindingsCount(expr ComparisonExpression, item LogItem) (bool, error) {
+func evaluateFindingsCount(
+	queryString string,
+	expr ComparisonExpression,
+	item LogItem,
+) (bool, error) {
 	expected, ok := expr.Value.Value.(int)
 	if !ok {
-		return false, fmt.Errorf(
-			"field %q requires a numeric value",
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Value.Position,
+			fmt.Sprintf(
+				"field %q requires a numeric value",
+				expr.Field.Name,
+			),
 		)
 	}
 
@@ -318,10 +471,14 @@ func evaluateFindingsCount(expr ComparisonExpression, item LogItem) (bool, error
 		return actual <= expected, nil
 
 	default:
-		return false, fmt.Errorf(
-			"operator %q is not supported for field %q; allowed operators are '=', '!=', '>', '>=', '<', '<='",
-			expr.Operator.Name,
-			expr.Field.Name,
+		return false, newQueryError(
+			queryString,
+			expr.Operator.Position,
+			fmt.Sprintf(
+				"operator %q is not supported for field %q; allowed operators are '=', '!=', '>', '>=', '<', '<='",
+				expr.Operator.Name,
+				expr.Field.Name,
+			),
 		)
 	}
 }

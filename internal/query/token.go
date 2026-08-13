@@ -51,18 +51,21 @@ type NotExpression struct {
 }
 
 type Field struct {
-	Name FieldName
-	Type FieldType
+	Name     FieldName
+	Type     FieldType
+	Position int
 }
 
 type Operator struct {
-	Name string
-	Type OperatorType
+	Name     string
+	Type     OperatorType
+	Position int
 }
 
 type Value struct {
-	Value any
-	Type  ValueType
+	Value    any
+	Type     ValueType
+	Position int
 }
 
 type FieldName string

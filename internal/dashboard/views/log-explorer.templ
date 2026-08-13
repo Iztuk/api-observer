@@ -3,6 +3,7 @@ package views
 import (
 	"fmt"
 	"observer/internal/query"
+	"strings"
 )
 
 templ LogExplorerPage(title, queryString string) {
@@ -63,6 +64,31 @@ templ LogExplorerQuery(queryString string) {
 			Search
 		</button>
 	</form>
+}
+
+templ QueryErrorMessage(err *query.QueryError) {
+	if err != nil {
+		<tr class="query-error-row">
+			<td colspan="7">
+				<div class="query-error" role="alert">
+					<div class="query-error-header">
+						<strong>Invalid query</strong>
+					</div>
+
+					<p class="query-error-message">
+						{ err.Message }
+					</p>
+
+					<div class="query-error-source">
+						<code>{ err.Query }</code>
+						<div class="query-error-pointer">
+							{ strings.Repeat(" ", err.Position) }^
+						</div>
+					</div>
+				</div>
+			</td>
+		</tr>
+	}
 }
 
 templ LogExplorerTable(queryString string) {

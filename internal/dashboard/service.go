@@ -34,6 +34,7 @@ func GetLogs(ctx context.Context, queryString string, cursor int64, limit int) (
 	logs, err := query.ReadLogs(
 		ctx,
 		expr,
+		queryString,
 		jobLogPath,
 		findingsLogPath,
 		query.LogCursor(cursor),

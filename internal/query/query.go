@@ -29,6 +29,7 @@ type LogItem struct {
 func ReadLogs(
 	ctx context.Context,
 	expr Expression,
+	queryString,
 	jobsPath,
 	findingsPath string,
 	cursor LogCursor,
@@ -37,6 +38,7 @@ func ReadLogs(
 	items, position, err := readJobLog(
 		ctx,
 		expr,
+		queryString,
 		jobsPath,
 		findingsPath,
 		cursor,
@@ -74,6 +76,7 @@ func ReadLog(
 func readJobLog(
 	ctx context.Context,
 	expr Expression,
+	queryString,
 	jobPath,
 	findingsPath string,
 	cursor LogCursor,
@@ -168,7 +171,7 @@ func readJobLog(
 			return nil, 0, err
 		}
 
-		valid, err := evaluateExpression(expr, item)
+		valid, err := evaluateExpression(queryString, expr, item)
 		if err != nil {
 			return nil, 0, err
 		}

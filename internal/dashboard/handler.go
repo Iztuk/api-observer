@@ -1,10 +1,12 @@
 package dashboard
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"observer/internal/audit"
 	"observer/internal/dashboard/views"
+	"observer/internal/query"
 	"strconv"
 )
 
@@ -58,11 +60,33 @@ func (h *Handler) GetLogExplorerLogs(w http.ResponseWriter, r *http.Request) {
 
 	queryString := queryParams.Get("query")
 
-	logs, err := GetLogs(r.Context(), queryString, int64(cursor), limit)
+	var queryErr query.QueryError
+
+	logs, err := GetLogs(
+		r.Context(),
+		queryString,
+		int64(cursor),
+		limit,
+	)
+
 	if err != nil {
+		if errors.As(err, &queryErr) {
+			if renderErr := views.QueryErrorMessage(
+				&queryErr,
+			).Render(r.Context(), w); renderErr != nil {
+				http.Error(
+					w,
+					"Unable to render query error.",
+					http.StatusInternalServerError,
+				)
+			}
+
+			return
+		}
+
 		http.Error(
 			w,
-			fmt.Sprintf("Unable to fetch logs. %s", err.Error()),
+			"Unable to fetch logs.",
 			http.StatusInternalServerError,
 		)
 		return
