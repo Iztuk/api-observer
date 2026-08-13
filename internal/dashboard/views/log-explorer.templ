@@ -17,7 +17,7 @@ templ LogExplorerPageContent(queryString string) {
 		<h1>Log Explorer</h1>
 		<p>Browse recorded API activity.</p>
 	</header>
-	@LogExplorerQuery()
+	@LogExplorerQuery(queryString)
 	<div class="log-explorer-layout">
 		<div class="log-explorer-main">
 			@LogExplorerTable(queryString)
@@ -27,14 +27,18 @@ templ LogExplorerPageContent(queryString string) {
 	@LogExplorerDetailSidebarScript()
 }
 
-templ LogExplorerQuery() {
-	<div class="log-query">
+templ LogExplorerQuery(queryString string) {
+	<form
+		class="log-query"
+		method="get"
+		action="/log-explorer"
+	>
 		<button
 			type="button"
 			class="refresh-button"
 			aria-label="Refresh logs"
 			title="Refresh logs"
-			hx-get="/logs?cursor=0&limit=25"
+			hx-get={fmt.Sprintf("/logs?query=%s&cursor=0&limit=25", queryString)}
 			hx-target="#log-explorer-table-body"
 			hx-swap="innerHTML swap:500ms"
 			hx-indicator="#log-loading"
@@ -46,16 +50,19 @@ templ LogExplorerQuery() {
 		>
 			<span class="refresh-symbol" aria-hidden="true">⟳</span>
 		</button>
+
 		<input
 			type="text"
 			name="query"
 			placeholder="Search logs..."
+            value={queryString}
 			autocomplete="off"
 		/>
-		<button type="button">
+
+		<button type="submit">
 			Search
 		</button>
-	</div>
+	</form>
 }
 
 templ LogExplorerTable(queryString string) {
