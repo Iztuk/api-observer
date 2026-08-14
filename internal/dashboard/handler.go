@@ -8,6 +8,7 @@ import (
 	"observer/internal/dashboard/views"
 	"observer/internal/query"
 	"strconv"
+	"time"
 )
 
 type Handler struct {
@@ -31,6 +32,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /rules", h.RulesPage)
 
 	mux.HandleFunc("GET /analysis", h.AnalysisPage)
+	mux.HandleFunc("POST /analysis/run", h.AnalysisRun)
 }
 
 func (h *Handler) LogExplorerPage(w http.ResponseWriter, r *http.Request) {
@@ -145,13 +147,26 @@ func (h *Handler) RulesPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AnalysisPage(w http.ResponseWriter, r *http.Request) {
-	queryParams := r.URL.Query()
-	queryString := queryParams.Get("query")
-
-	if err := views.AnalysisPage("Analysis", queryString).Render(r.Context(), w); err != nil {
+	timeFrom := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02T15:04")
+	if err := views.AnalysisPage("Analysis", "", "", timeFrom, "").Render(r.Context(), w); err != nil {
 		http.Error(
 			w,
 			"Unable to render analysis page.",
+			http.StatusInternalServerError,
+		)
+	}
+}
+
+func (h *Handler) AnalysisRun(w http.ResponseWriter, r *http.Request) {
+	queryString := r.FormValue("query")
+	rules := r.FormValue("rules")
+	timeFrom := r.FormValue("time_from")
+	timeTo := r.FormValue("time_to")
+
+	if err := views.AnalysisPageContent(queryString, rules, timeFrom, timeTo).Render(r.Context(), w); err != nil {
+		http.Error(
+			w,
+			"Unable to render page content.",
 			http.StatusInternalServerError,
 		)
 	}

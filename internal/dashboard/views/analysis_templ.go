@@ -8,9 +8,13 @@ package views
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import ()
-
-func AnalysisPage(title, queryString string) templ.Component {
+func AnalysisPage(
+	title,
+	queryString,
+	editorContent,
+	timeFrom,
+	timeTo string,
+) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -43,7 +47,12 @@ func AnalysisPage(title, queryString string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = AnalysisPageContent(queryString).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = AnalysisPageContent(
+				queryString,
+				editorContent,
+				timeFrom,
+				timeTo,
+			).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -53,11 +62,20 @@ func AnalysisPage(title, queryString string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		templ_7745c5c3_Err = AnalysisScript().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		return nil
 	})
 }
 
-func AnalysisPageContent(queryString string) templ.Component {
+func AnalysisPageContent(
+	queryString,
+	editorContent,
+	timeFrom,
+	timeTo string,
+) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -78,31 +96,59 @@ func AnalysisPageContent(queryString string) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<link rel=\"stylesheet\" href=\"/static/log-explorer.css\"><link rel=\"stylesheet\" href=\"/static/analysis.css\"><header class=\"page-header\"><h1>Analysis</h1><p>Analyze historical API traffic.</p></header>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"analysis-page-content\"><link rel=\"stylesheet\" href=\"/static/log-explorer.css\"><link rel=\"stylesheet\" href=\"/static/analysis.css\"><header class=\"page-header\"><h1>Analysis</h1><p>Analyze historical API traffic.</p></header><form id=\"analysis-query-form\" class=\"analysis-query\" hx-post=\"/analysis/run\" hx-target=\"#analysis-page-content\" hx-swap=\"outerHTML\"><div class=\"analysis-time-range\"><div class=\"analysis-time-field\"><label for=\"time-from\">From</label> <input type=\"datetime-local\" id=\"time-from\" name=\"time_from\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = LogExplorerQuery(queryString).Render(ctx, templ_7745c5c3_Buffer)
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(timeFrom)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 49, Col: 22}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"analysis-layout\"><nav class=\"analysis-tabs\" aria-label=\"Analysis views\"><button type=\"button\" class=\"analysis-tab active\" data-analysis-tab=\"logs\">Logs</button> <button type=\"button\" class=\"analysis-tab\" data-analysis-tab=\"statistics\">Statistics</button> <button type=\"button\" class=\"analysis-tab\" data-analysis-tab=\"rules\">Rules</button></nav><div class=\"analysis-view active\" data-analysis-view=\"logs\"><div class=\"log-explorer-layout\"><div class=\"log-explorer-main\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"></div><div class=\"analysis-time-field\"><label for=\"time-to\">To</label> <input type=\"datetime-local\" id=\"time-to\" name=\"time_to\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = LogExplorerTable(queryString).Render(ctx, templ_7745c5c3_Buffer)
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(timeTo)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 58, Col: 20}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><div id=\"log-explorer-details\"></div></div></div><div class=\"analysis-view\" data-analysis-view=\"statistics\"><div class=\"analysis-statistics\"><p>Statistics will go here.</p></div></div><div class=\"analysis-view\" data-analysis-view=\"rules\"><div class=\"analysis-rules\"><header class=\"analysis-section-header\"><h2>Rules</h2><p>Select the rules to include in this analysis.</p></header><div class=\"analysis-rules-list\"><p>No rules selected.</p></div></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"></div></div><div class=\"analysis-query-bar\"><input type=\"text\" name=\"query\" placeholder=\"Filter logs...\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = LogExplorerDetailSidebarScript().Render(ctx, templ_7745c5c3_Buffer)
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(queryString)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 67, Col: 24}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = AnalysisTabsScript().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" autocomplete=\"off\"> <textarea id=\"analysis-rules-input\" name=\"rules\" hidden>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(editorContent)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 74, Col: 20}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</textarea> <button type=\"submit\">Run</button></div></form><div class=\"analysis-layout\"><nav class=\"analysis-tabs\" aria-label=\"Analysis views\"><button type=\"button\" class=\"analysis-tab active\" data-analysis-tab=\"logs\">Logs</button> <button type=\"button\" class=\"analysis-tab\" data-analysis-tab=\"statistics\">Statistics</button> <button type=\"button\" class=\"analysis-tab\" data-analysis-tab=\"rules\">Rules</button></nav><div class=\"analysis-view active\" data-analysis-view=\"logs\"><div class=\"log-explorer-layout\"><div class=\"log-explorer-main\"><div class=\"log-table-wrapper\"><div id=\"log-loading\" class=\"htmx-indicator log-loading-overlay\"><div class=\"log-loading\"><span class=\"loading-spinner\"></span> <span>Loading logs...</span></div></div><table class=\"log-table\"><thead><tr><th>Timestamp</th><th>Host</th><th>Type</th><th>Method</th><th>Path</th><th>Status</th><th>Findings</th></tr></thead> <tbody id=\"analysis-table-body\"><!-- Analysis results go here --></tbody></table></div></div><div id=\"log-explorer-details\"></div></div></div><div class=\"analysis-view\" data-analysis-view=\"statistics\"><div class=\"analysis-statistics\"><p>Statistics will go here.</p></div></div><div class=\"analysis-view\" data-analysis-view=\"rules\"><div class=\"analysis-rules\"><header class=\"analysis-section-header\"><div><h2>Rules</h2><p>Add the rules to include in this analysis.</p></div></header><div class=\"analysis-rules-list\"><div id=\"editor-container\"></div></div></div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -110,7 +156,7 @@ func AnalysisPageContent(queryString string) templ.Component {
 	})
 }
 
-func AnalysisTabsScript() templ.Component {
+func AnalysisScript() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -126,12 +172,12 @@ func AnalysisTabsScript() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var4 == nil {
-			templ_7745c5c3_Var4 = templ.NopComponent
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<script>\n\t\t(() => {\n\t\t\tconst tabs = document.querySelectorAll(\"[data-analysis-tab]\");\n\n\t\t\tconst views = document.querySelectorAll(\"[data-analysis-view]\");\n\n\t\t\ttabs.forEach((tab) => {\n\t\t\t\ttab.addEventListener(\"click\", () => {\n\t\t\t\t\tconst selectedView = tab.dataset.analysisTab;\n\n\t\t\t\t\ttabs.forEach((item) => {\n\t\t\t\t\t\titem.classList.toggle(\"active\", item === tab);\n\t\t\t\t\t});\n\n\t\t\t\t\tviews.forEach((view) => {\n\t\t\t\t\t\tview.classList.toggle(\n\t\t\t\t\t\t\t\"active\",\n\t\t\t\t\t\t\tview.dataset.analysisView === selectedView,\n\t\t\t\t\t\t);\n\t\t\t\t\t});\n\t\t\t\t});\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<script src=\"/static/monaco-editor-0.56.0/package/min/vs/loader.js\"></script><script>\n\t\t(() => {\n\t\t\t/*\n\t\t\t * Tabs\n\t\t\t */\n\t\t\tconst tabs = document.querySelectorAll(\"[data-analysis-tab]\");\n\n\t\t\tconst views = document.querySelectorAll(\"[data-analysis-view]\");\n\n\t\t\ttabs.forEach((tab) => {\n\t\t\t\ttab.addEventListener(\"click\", () => {\n\t\t\t\t\tconst selectedView = tab.dataset.analysisTab;\n\n\t\t\t\t\ttabs.forEach((item) => {\n\t\t\t\t\t\titem.classList.toggle(\"active\", item === tab);\n\t\t\t\t\t});\n\n\t\t\t\t\tviews.forEach((view) => {\n\t\t\t\t\t\tview.classList.toggle(\n\t\t\t\t\t\t\t\"active\",\n\t\t\t\t\t\t\tview.dataset.analysisView === selectedView,\n\t\t\t\t\t\t);\n\t\t\t\t\t});\n\n\t\t\t\t\tif (selectedView === \"rules\" && window.analysisRuleEditor) {\n\t\t\t\t\t\twindow.analysisRuleEditor.layout();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t/*\n\t\t\t * Monaco\n\t\t\t */\n\t\t\trequire.config({\n\t\t\t\tpaths: {\n\t\t\t\t\tvs: \"/static/monaco-editor-0.56.0/package/min/vs\",\n\t\t\t\t},\n\t\t\t});\n\n\t\t\trequire([\"vs/editor/editor.main\"], function () {\n\t\t\t\tconst editorContainer = document.getElementById(\"editor-container\");\n\n\t\t\t\tconst rulesInput = document.getElementById(\"analysis-rules-input\");\n\n\t\t\t\tconst editor = monaco.editor.create(editorContainer, {\n\t\t\t\t\tvalue:\n\t\t\t\t\t\trulesInput.value ||\n\t\t\t\t\t\t`rules:\n  `,\n\t\t\t\t\tlanguage: \"yaml\",\n\t\t\t\t\ttheme: \"vs-dark\",\n\t\t\t\t\tautomaticLayout: true,\n\n\t\t\t\t\tminimap: {\n\t\t\t\t\t\tenabled: false,\n\t\t\t\t\t},\n\n\t\t\t\t\tscrollBeyondLastLine: false,\n\t\t\t\t\tfontSize: 14,\n\t\t\t\t\ttabSize: 2,\n\t\t\t\t});\n\n\t\t\t\twindow.analysisRuleEditor = editor;\n\n\t\t\t\t/*\n\t\t\t\t * Keep hidden form field in sync.\n\t\t\t\t */\n\t\t\t\teditor.onDidChangeModelContent(() => {\n\t\t\t\t\trulesInput.value = editor.getValue();\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t/*\n\t\t\t * Make absolutely sure the latest editor\n\t\t\t * contents are submitted.\n\t\t\t */\n\t\t\tconst form = document.getElementById(\"analysis-query-form\");\n\n\t\t\tform.addEventListener(\"submit\", () => {\n\t\t\t\tconst rulesInput = document.getElementById(\"analysis-rules-input\");\n\n\t\t\t\tif (window.analysisRuleEditor) {\n\t\t\t\t\trulesInput.value = window.analysisRuleEditor.getValue();\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
