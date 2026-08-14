@@ -13,7 +13,7 @@ import (
 // 	return &Service{}
 // }
 
-func GetLogs(ctx context.Context, cursor int64, limit int) (query.LogPage, error) {
+func GetLogs(ctx context.Context, queryString string, cursor int64, limit int) (query.LogPage, error) {
 	jobLogPath := os.Getenv("API_OBSERVER_JOB_LOG")
 
 	if jobLogPath == "" {
@@ -26,8 +26,15 @@ func GetLogs(ctx context.Context, cursor int64, limit int) (query.LogPage, error
 		findingsLogPath = "./logs/findings.jsonl"
 	}
 
+	expr, err := query.ParseQuery(queryString)
+	if err != nil {
+		return query.LogPage{}, err
+	}
+
 	logs, err := query.ReadLogs(
 		ctx,
+		expr,
+		queryString,
 		jobLogPath,
 		findingsLogPath,
 		query.LogCursor(cursor),

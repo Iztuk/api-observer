@@ -3,38 +3,43 @@ package views
 import (
 	"fmt"
 	"observer/internal/query"
+	"strings"
 )
 
-templ LogExplorerPage(title string, logs query.LogPage) {
+templ LogExplorerPage(title, queryString string) {
 	@Layout(title) {
-		@LogExplorerPageContent(logs)
+		@LogExplorerPageContent(queryString)
 	}
 }
 
-templ LogExplorerPageContent(logs query.LogPage) {
+templ LogExplorerPageContent(queryString string) {
 	<link rel="stylesheet" href="/static/log-explorer.css"/>
 	<header class="page-header">
 		<h1>Log Explorer</h1>
 		<p>Browse recorded API activity.</p>
 	</header>
-	@LogExplorerQuery()
+	@LogExplorerQuery(queryString)
 	<div class="log-explorer-layout">
 		<div class="log-explorer-main">
-			@LogExplorerTable(logs, 25)
+			@LogExplorerTable(queryString)
 		</div>
 		<div id="log-explorer-details"></div>
 	</div>
 	@LogExplorerDetailSidebarScript()
 }
 
-templ LogExplorerQuery() {
-	<div class="log-query">
+templ LogExplorerQuery(queryString string) {
+	<form
+		class="log-query"
+		method="get"
+		action="/log-explorer"
+	>
 		<button
 			type="button"
 			class="refresh-button"
 			aria-label="Refresh logs"
 			title="Refresh logs"
-			hx-get="/logs?cursor=0&limit=25"
+			hx-get={fmt.Sprintf("/logs?query=%s&cursor=0&limit=25", queryString)}
 			hx-target="#log-explorer-table-body"
 			hx-swap="innerHTML swap:500ms"
 			hx-indicator="#log-loading"
@@ -46,19 +51,47 @@ templ LogExplorerQuery() {
 		>
 			<span class="refresh-symbol" aria-hidden="true">⟳</span>
 		</button>
+
 		<input
 			type="text"
 			name="query"
 			placeholder="Search logs..."
+            value={queryString}
 			autocomplete="off"
 		/>
-		<button type="button">
+
+		<button type="submit">
 			Search
 		</button>
-	</div>
+	</form>
 }
 
-templ LogExplorerTable(logs query.LogPage, limit int) {
+templ QueryErrorMessage(err *query.QueryError) {
+	if err != nil {
+		<tr class="query-error-row">
+			<td colspan="7">
+				<div class="query-error" role="alert">
+					<div class="query-error-header">
+						<strong>Invalid query</strong>
+					</div>
+
+					<p class="query-error-message">
+						{ err.Message }
+					</p>
+
+					<div class="query-error-source">
+						<code>{ err.Query }</code>
+						<div class="query-error-pointer">
+							{ strings.Repeat(" ", err.Position) }^
+						</div>
+					</div>
+				</div>
+			</td>
+		</tr>
+	}
+}
+
+templ LogExplorerTable(queryString string) {
 	<div class="log-table-wrapper">
 		<div
 			id="log-loading"
@@ -84,7 +117,7 @@ templ LogExplorerTable(logs query.LogPage, limit int) {
 			<tbody
 				id="log-explorer-table-body"
 				hx-trigger="load"
-				hx-get={ fmt.Sprintf("/logs?cursor=0&limit=%d", limit) }
+				hx-get={ fmt.Sprintf("/logs?query=%s&cursor=0&limit=25", queryString) }
 				hx-indicator="#log-loading"
 			></tbody>
 		</table>
@@ -93,6 +126,7 @@ templ LogExplorerTable(logs query.LogPage, limit int) {
 
 templ LogExplorerTableRows(
 	items []query.LogItem,
+    queryString string,
 	cursor query.LogCursor,
 	limit int,
 ) {
@@ -143,7 +177,8 @@ templ LogExplorerTableRows(
 			class="log-load-more"
 			hx-trigger="revealed"
 			hx-get={ fmt.Sprintf(
-				"/logs?cursor=%d&limit=%d",
+				"/logs?query=%s&cursor=%d&limit=%d",
+                queryString,
 				cursor,
 				limit,
 			) }

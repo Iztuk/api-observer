@@ -28,6 +28,8 @@ type LogItem struct {
 
 func ReadLogs(
 	ctx context.Context,
+	expr Expression,
+	queryString,
 	jobsPath,
 	findingsPath string,
 	cursor LogCursor,
@@ -35,18 +37,12 @@ func ReadLogs(
 ) (LogPage, error) {
 	items, position, err := readJobLog(
 		ctx,
+		expr,
+		queryString,
 		jobsPath,
+		findingsPath,
 		cursor,
 		limit,
-	)
-	if err != nil {
-		return LogPage{}, err
-	}
-
-	items, err = findJobFindings(
-		ctx,
-		items,
-		findingsPath,
 	)
 	if err != nil {
 		return LogPage{}, err
@@ -67,38 +63,26 @@ func ReadLog(
 	item, err := readJobLogForward(
 		ctx,
 		jobsPath,
+		findingsPath,
 		cursor,
 	)
 	if err != nil {
 		return LogItem{}, err
 	}
 
-	items, err := findJobFindings(
-		ctx,
-		[]LogItem{item},
-		findingsPath,
-	)
-	if err != nil {
-		return LogItem{}, err
-	}
-
-	if len(items) == 0 {
-		return LogItem{}, fmt.Errorf(
-			"log not found at cursor %d",
-			cursor,
-		)
-	}
-
-	return items[0], nil
+	return item, nil
 }
 
 func readJobLog(
 	ctx context.Context,
-	path string,
+	expr Expression,
+	queryString,
+	jobPath,
+	findingsPath string,
 	cursor LogCursor,
 	limit int,
 ) ([]LogItem, LogCursor, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(jobPath)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -176,11 +160,25 @@ func readJobLog(
 			continue
 		}
 
-		items = append(items, LogItem{
+		item := LogItem{
 			Job:       job,
 			JobCursor: LogCursor(lineStart),
 			Findings:  make([]audit.Finding, 0),
-		})
+		}
+
+		item, err = findJobFindings(ctx, item, findingsPath)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		valid, err := evaluateExpression(queryString, expr, item)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		if valid {
+			items = append(items, item)
+		}
 	}
 
 	return items, LogCursor(position), nil
@@ -188,10 +186,11 @@ func readJobLog(
 
 func readJobLogForward(
 	ctx context.Context,
-	path string,
+	jobPath,
+	findingsPath string,
 	cursor LogCursor,
 ) (LogItem, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(jobPath)
 	if err != nil {
 		return LogItem{}, err
 	}
@@ -234,27 +233,28 @@ func readJobLogForward(
 		)
 	}
 
-	return LogItem{
+	item := LogItem{
 		Job:       job,
 		JobCursor: cursor,
 		Findings:  make([]audit.Finding, 0),
-	}, nil
+	}
+
+	item, err = findJobFindings(ctx, item, findingsPath)
+	if err != nil {
+		return LogItem{}, err
+	}
+
+	return item, nil
 }
 
 func findJobFindings(
 	ctx context.Context,
-	items []LogItem,
+	item LogItem,
 	path string,
-) ([]LogItem, error) {
-	jobIndex := make(map[string]int, len(items))
-
-	for i, item := range items {
-		jobIndex[item.Job.ID] = i
-	}
-
+) (LogItem, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return LogItem{}, err
 	}
 	defer file.Close()
 
@@ -263,7 +263,7 @@ func findJobFindings(
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return LogItem{}, ctx.Err()
 		default:
 		}
 
@@ -274,7 +274,7 @@ func findJobFindings(
 		}
 
 		if err != nil {
-			return nil, err
+			return LogItem{}, err
 		}
 
 		line = bytes.TrimSpace(line)
@@ -289,16 +289,40 @@ func findJobFindings(
 			continue
 		}
 
-		index, ok := jobIndex[finding.JobID]
-		if !ok {
-			continue
+		if item.Job.ID == finding.JobID {
+			item.Findings = append(item.Findings, finding)
 		}
-
-		items[index].Findings = append(
-			items[index].Findings,
-			finding,
-		)
 	}
 
-	return items, nil
+	return item, nil
+}
+
+func ParseQuery(rawString string) (Expression, error) {
+	if len(rawString) == 0 {
+		return nil, nil
+	}
+
+	l := Lexer{
+		Query:    rawString,
+		Position: 0,
+		Tokens:   make([]Token, 0),
+	}
+
+	err := l.Process()
+	if err != nil {
+		return nil, err
+	}
+
+	p := Parser{
+		Query:         rawString,
+		Tokens:        l.Tokens,
+		TokenPosition: 0,
+	}
+
+	expr, err := p.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return expr, nil
 }
