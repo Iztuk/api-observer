@@ -1,244 +1,102 @@
 rules:
-  request.query.sql_injection:
-    enabled: true
-    applies_to:
-      - request
-    type: query
-    description: Detects common SQL injection patterns in query parameters.
-    match:
-      paths:
-        - "*"
-      methods:
-        - GET
-        - POST
-      patterns:
-        - target: query
-          name: "*"
-          pattern: "(?i)(union\\s+select|or\\s+['\"]?1['\"]?\\s*=\\s*['\"]?1['\"]?|drop\\s+table|sleep\\s*\\(|information_schema)"
-    finding:
-      title: Possible SQL injection attempt
-      message: A request query parameter matched a suspicious SQL injection pattern.
-
-  request.query.debug_enabled:
-    enabled: true
-    applies_to:
-      - request
-    type: query
-    description: Detects requests that enable debug behavior through a query parameter.
-    match:
-      paths:
-        - "*"
-      methods:
-        - GET
-        - POST
-      query_params:
-        debug:
-          - "true"
-          - "1"
-          - "yes"
-    finding:
-      title: Debug query parameter enabled
-      message: The request enabled debug behavior through a query parameter.
-
-  request.query.risky_mode:
-    enabled: true
-    applies_to:
-      - request
-    type: query
-    description: Detects potentially risky application modes.
-    match:
-      paths:
-        - "*"
-      methods:
-        - GET
-        - POST
-      query_params:
-        mode:
-          - debug
-          - admin
-          - internal
-          - test
-    finding:
-      title: Risky mode requested
-      message: The request included a potentially unsafe mode value.
-
-  request.header.debug_enabled:
-    enabled: true
-    applies_to:
-      - request
-    type: header
-    description: Detects requests containing a debug header.
-    match:
-      paths:
-        - "*"
-      methods:
-        - GET
-        - POST
-      headers:
-        X-Debug:
-          - "true"
-          - "1"
-    finding:
-      title: Debug header enabled
-      message: The request included a debug-enabling HTTP header.
-
-  request.header.suspicious_forwarded_host:
-    enabled: true
-    applies_to:
-      - request
-    type: header
-    description: Detects suspicious forwarded host values.
-    match:
-      paths:
-        - "*"
-      methods:
-        - GET
-        - POST
-      patterns:
-        - target: header
-          name: X-Forwarded-Host
-          pattern: "(?i)(localhost|127\\.0\\.0\\.1|169\\.254\\.169\\.254)"
-    finding:
-      title: Suspicious forwarded host
-      message: The request included a suspicious X-Forwarded-Host value.
-
-  request.path.sensitive_route_access:
+  request.health_endpoint_accessed:
     enabled: true
     applies_to:
       - request
     type: path
-    description: Detects access to sensitive or internal-looking routes.
+    description: Detect when the health endpoint is accessed.
+
     match:
       paths:
-        - "*"
+        - "/health"
       methods:
         - GET
-        - POST
-      patterns:
-        - target: path
-          pattern: "(?i)^/(admin|internal|debug|actuator|metrics|server-status)(/.*)?$"
-    finding:
-      title: Sensitive path requested
-      message: The request targeted a sensitive or internal-looking route.
 
-  request.path.failure_endpoint:
+    finding:
+      title: Health endpoint accessed
+      message: The health endpoint was requested.
+
+  request.admin_endpoint_accessed:
     enabled: true
     applies_to:
       - request
     type: path
-    description: Detects requests to the intentional failure endpoint.
+    description: Detect when the administrative statistics endpoint is accessed.
+
     match:
       paths:
-        - /fail
+        - "/admin/stats"
       methods:
         - GET
-    finding:
-      title: Intentional failure route requested
-      message: A client requested the endpoint designed to produce an error response.
 
-  request.body.echo_suspicious_content:
+    finding:
+      title: Admin endpoint accessed
+      message: The administrative statistics endpoint was requested.
+
+  request.user_created:
     enabled: true
     applies_to:
       - request
-    type: body_field
-    description: Detects suspicious content in the echo message.
+    type: path
+    description: Detect user creation requests.
+
     match:
       paths:
-        - /echo
+        - "/users"
       methods:
         - POST
-      patterns:
-        - target: field
-          name: message
-          pattern: "(?i)(<script|javascript:|union\\s+select|\\.\\./|/etc/passwd|cmd\\.exe|powershell)"
-    finding:
-      title: Suspicious echo message
-      message: The echo request contained a value resembling an injection or traversal payload.
 
-  request.body.echo_sensitive_field:
+    finding:
+      title: User creation requested
+      message: A request was made to create a new user.
+
+  request.project_created:
     enabled: true
     applies_to:
       - request
-    type: body_field
-    description: Detects unexpected sensitive fields in the echo request.
+    type: path
+    description: Detect project creation requests.
+
     match:
       paths:
-        - /echo
+        - "/projects"
       methods:
         - POST
-      fields:
-        - password
-        - passwordHash
-        - accessToken
-        - refreshToken
-        - apiKey
-        - secret
-    finding:
-      title: Sensitive field submitted
-      message: The echo request contained a field commonly used to carry sensitive data.
 
-  response.body.error_message:
+    finding:
+      title: Project creation requested
+      message: A request was made to create a new project.
+
+  request.task_created:
     enabled: true
     applies_to:
-      - response
-    type: body_field
-    description: Detects error fields in JSON responses.
+      - request
+    type: path
+    description: Detect task creation requests.
+
     match:
       paths:
-        - "*"
+        - "/projects/{projectID}/tasks"
       methods:
-        - GET
         - POST
-      fields:
-        - error
-    finding:
-      title: Error response returned
-      message: The response body contained an error field.
 
-  response.body.sensitive_field:
+    finding:
+      title: Task creation requested
+      message: A request was made to create a task.
+
+  request.task_deleted:
     enabled: true
     applies_to:
-      - response
-    type: body_field
-    description: Detects sensitive fields exposed in JSON responses.
-    match:
-      paths:
-        - "*"
-      methods:
-        - GET
-        - POST
-      fields:
-        - password
-        - passwordHash
-        - accessToken
-        - refreshToken
-        - apiKey
-        - secret
-        - tokens.accessToken
-        - tokens.refreshToken
-    finding:
-      title: Sensitive response field exposed
-      message: The response body exposed a field that may contain sensitive information.
+      - request
+    type: path
+    description: Detect task deletion requests.
 
-  response.header.server_disclosure:
-    enabled: true
-    applies_to:
-      - response
-    type: header
-    description: Detects server technology disclosure through response headers.
     match:
       paths:
-        - "*"
+        - "/tasks/{id}"
       methods:
-        - GET
-        - POST
-      patterns:
-        - target: header
-          name: Server
-          pattern: ".+"
-        - target: header
-          name: X-Powered-By
-          pattern: ".+"
+        - DELETE
+
     finding:
-      title: Server technology disclosed
-      message: The response exposed implementation details through an HTTP header.
+      title: Task deletion requested
+      message: A request was made to delete a task.
