@@ -29,6 +29,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /logs/details", h.GetLogExplorerLogDetails)
 
 	mux.HandleFunc("GET /rules", h.RulesPage)
+
+	mux.HandleFunc("GET /analysis", h.AnalysisPage)
 }
 
 func (h *Handler) LogExplorerPage(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +139,19 @@ func (h *Handler) RulesPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(
 			w,
 			"Unable to render rules page.",
+			http.StatusInternalServerError,
+		)
+	}
+}
+
+func (h *Handler) AnalysisPage(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	queryString := queryParams.Get("query")
+
+	if err := views.AnalysisPage("Analysis", queryString).Render(r.Context(), w); err != nil {
+		http.Error(
+			w,
+			"Unable to render analysis page.",
 			http.StatusInternalServerError,
 		)
 	}

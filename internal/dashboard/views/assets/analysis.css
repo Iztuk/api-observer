@@ -1,0 +1,127 @@
+.analysis-layout {
+  flex: 1;
+
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tabs */
+
+.analysis-tabs {
+  flex-shrink: 0;
+
+  display: flex;
+  gap: 0.25rem;
+
+  margin-bottom: 1rem;
+
+  border-bottom: 1px solid var(--border-color);
+}
+
+.analysis-tab {
+  padding: 0.625rem 1rem;
+
+  color: var(--text-color);
+  background: transparent;
+
+  border: 0;
+  border-bottom: 2px solid transparent;
+
+  font: inherit;
+
+  cursor: pointer;
+  opacity: 0.65;
+}
+
+.analysis-tab:hover {
+  opacity: 1;
+}
+
+.analysis-tab:focus-visible {
+  outline: 2px solid var(--text-color);
+  outline-offset: 2px;
+}
+
+.analysis-tab.active {
+  opacity: 1;
+  font-weight: 600;
+  border-bottom-color: currentColor;
+}
+
+/* Views */
+
+.analysis-view {
+  display: none;
+
+  flex: 1;
+
+  min-width: 0;
+  min-height: 0;
+}
+
+.analysis-view.active {
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * Continue the Log Explorer flex chain through the Analysis view.
+ * This lets the table consume only the space remaining below the tabs.
+ */
+
+.analysis-view .log-explorer-layout {
+  flex: 1;
+
+  min-width: 0;
+  min-height: 0;
+}
+
+.analysis-view .log-explorer-main {
+  flex: 1 1 auto;
+
+  min-width: 0;
+  min-height: 0;
+}
+
+.analysis-view .log-table-wrapper {
+  flex: 1;
+
+  min-width: 0;
+  min-height: 0;
+
+  overflow: auto;
+}
+
+/* Statistics */
+
+.analysis-statistics {
+  flex: 1;
+
+  min-width: 0;
+  min-height: 0;
+
+  overflow: auto;
+}
+
+.analysis-statistics > :first-child {
+  margin-top: 0;
+}
+
+.analysis-statistics > :last-child {
+  margin-bottom: 0;
+}
+
+/* Mobile */
+
+@media (max-width: 48rem) {
+  .analysis-tabs {
+    overflow-x: auto;
+  }
+
+  .analysis-tab {
+    flex-shrink: 0;
+  }
+}

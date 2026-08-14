@@ -1,0 +1,107 @@
+package views
+
+import ()
+
+templ AnalysisPage(title, queryString string) {
+	@Layout(title) {
+		@AnalysisPageContent(queryString)
+	}
+}
+
+templ AnalysisPageContent(queryString string) {
+	<link rel="stylesheet" href="/static/log-explorer.css"/>
+	<link rel="stylesheet" href="/static/analysis.css"/>
+	<header class="page-header">
+		<h1>Analysis</h1>
+		<p>Analyze historical API traffic.</p>
+	</header>
+	@LogExplorerQuery(queryString)
+	<div class="analysis-layout">
+		<nav class="analysis-tabs" aria-label="Analysis views">
+			<button
+				type="button"
+				class="analysis-tab active"
+				data-analysis-tab="logs"
+			>
+				Logs
+			</button>
+			<button
+				type="button"
+				class="analysis-tab"
+				data-analysis-tab="statistics"
+			>
+				Statistics
+			</button>
+			<button
+				type="button"
+				class="analysis-tab"
+				data-analysis-tab="rules"
+			>
+				Rules
+			</button>
+		</nav>
+		<div
+			class="analysis-view active"
+			data-analysis-view="logs"
+		>
+			<div class="log-explorer-layout">
+				<div class="log-explorer-main">
+					@LogExplorerTable(queryString)
+				</div>
+				<div id="log-explorer-details"></div>
+			</div>
+		</div>
+		<div
+			class="analysis-view"
+			data-analysis-view="statistics"
+		>
+			<div class="analysis-statistics">
+				<p>Statistics will go here.</p>
+			</div>
+		</div>
+<div
+	class="analysis-view"
+	data-analysis-view="rules"
+>
+	<div class="analysis-rules">
+		<header class="analysis-section-header">
+			<h2>Rules</h2>
+			<p>Select the rules to include in this analysis.</p>
+		</header>
+
+		<div class="analysis-rules-list">
+			<p>No rules selected.</p>
+		</div>
+	</div>
+</div>
+	</div>
+	@LogExplorerDetailSidebarScript()
+	@AnalysisTabsScript()
+}
+
+templ AnalysisTabsScript() {
+	<script>
+		(() => {
+			const tabs = document.querySelectorAll("[data-analysis-tab]");
+
+			const views = document.querySelectorAll("[data-analysis-view]");
+
+			tabs.forEach((tab) => {
+				tab.addEventListener("click", () => {
+					const selectedView = tab.dataset.analysisTab;
+
+					tabs.forEach((item) => {
+						item.classList.toggle("active", item === tab);
+					});
+
+					views.forEach((view) => {
+						view.classList.toggle(
+							"active",
+							view.dataset.analysisView === selectedView,
+						);
+					});
+				});
+			});
+		})();
+	</script>
+}
