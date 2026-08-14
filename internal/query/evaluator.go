@@ -88,6 +88,13 @@ func evaluateComparison(
 	item LogItem,
 ) (bool, error) {
 	switch expr.Field.Name {
+	case "type":
+		return evaluateTypeField(
+			queryString,
+			expr,
+			item,
+		)
+
 	case "host":
 		return evaluateHostField(
 			queryString,
@@ -139,6 +146,66 @@ func evaluateComparison(
 				expr.Field.Name,
 			),
 		)
+	}
+}
+
+func evaluateTypeField(
+	queryString string,
+	expr ComparisonExpression,
+	item LogItem,
+) (bool, error) {
+	expected, ok := expr.Value.Value.(string)
+	if !ok {
+		return false, newQueryError(
+			queryString,
+			expr.Value.Position,
+			fmt.Sprintf(
+				"field %q requires a string value",
+				expr.Field.Name,
+			),
+		)
+	}
+
+	if !isValidJobType(expected) {
+		return false, newQueryError(
+			queryString,
+			expr.Value.Position,
+			fmt.Sprintf(
+				"field %q requires a value of \"request\", \"response\", or \"failure\".",
+				expr.Field.Name,
+			),
+		)
+
+	}
+
+	switch expr.Operator.Type {
+	case OperatorTypeEqual:
+		return item.Job.Type == expected, nil
+
+	case OperatorTypeNotEqual:
+		return item.Job.Type != expected, nil
+
+	default:
+		return false, newQueryError(
+			queryString,
+			expr.Operator.Position,
+			fmt.Sprintf(
+				"operator %q is not supported for field %q; allowed operators are = and !=",
+				expr.Operator.Name,
+				expr.Field.Name,
+			),
+		)
+	}
+}
+
+func isValidJobType(val string) bool {
+	val = strings.ToLower(val)
+
+	switch val {
+	case "request", "response", "failure":
+		return true
+	default:
+		return false
 	}
 }
 
