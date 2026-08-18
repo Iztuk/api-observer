@@ -147,7 +147,23 @@ func (h *Handler) RulesPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AnalysisPage(w http.ResponseWriter, r *http.Request) {
-	timeFrom := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02T15:04")
+	now := time.Now().UTC()
+
+	today := time.Date(
+		now.Year(),
+		now.Month(),
+		now.Day(),
+		0,
+		0,
+		0,
+		0,
+		time.UTC,
+	)
+
+	timeFrom := today.
+		AddDate(0, 0, -1).
+		Format("2006-01-02T15:04")
+
 	if err := views.AnalysisPage("Analysis", "", "", timeFrom, "").Render(r.Context(), w); err != nil {
 		http.Error(
 			w,
@@ -159,11 +175,11 @@ func (h *Handler) AnalysisPage(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) AnalysisRun(w http.ResponseWriter, r *http.Request) {
 	queryString := r.FormValue("query")
-	rules := r.FormValue("rules")
-	timeFrom := r.FormValue("time_from")
-	timeTo := r.FormValue("time_to")
+	// rules := r.FormValue("rules")
+	// timeFrom := r.FormValue("time_from")
+	// timeTo := r.FormValue("time_to")
 
-	if err := views.AnalysisPageContent(queryString, rules, timeFrom, timeTo).Render(r.Context(), w); err != nil {
+	if err := views.AnalysisTableRows(nil, queryString, 0, 25).Render(r.Context(), w); err != nil {
 		http.Error(
 			w,
 			"Unable to render page content.",

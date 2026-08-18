@@ -1,5 +1,10 @@
 package views
 
+import (
+	"fmt"
+	"observer/internal/query"
+)
+
 templ AnalysisPage(
 	title,
 	queryString,
@@ -15,8 +20,7 @@ templ AnalysisPage(
 			timeTo,
 		)
 	}
-
-    @AnalysisScript()
+	@AnalysisScript()
 }
 
 templ AnalysisPageContent(
@@ -36,8 +40,8 @@ templ AnalysisPageContent(
 			id="analysis-query-form"
 			class="analysis-query"
 			hx-post="/analysis/run"
-			hx-target="#analysis-page-content"
-			hx-swap="outerHTML"
+			hx-target="#analysis-table-body"
+			hx-swap="innerHTML"
 		>
 			<div class="analysis-time-range">
 				<div class="analysis-time-field">
@@ -129,9 +133,12 @@ templ AnalysisPageContent(
 										<th>Findings</th>
 									</tr>
 								</thead>
-								<tbody id="analysis-table-body">
-									<!-- Analysis results go here -->
-								</tbody>
+								<tbody
+									id="analysis-table-body"
+									hx-trigger="load"
+									hx-get={ fmt.Sprintf("/logs?query=%s&cursor=0&limit=25", queryString) }
+									hx-indicator="#log-loading"
+								></tbody>
 							</table>
 						</div>
 					</div>
@@ -166,6 +173,14 @@ templ AnalysisPageContent(
 			</div>
 		</div>
 	</div>
+}
+
+templ AnalysisTableRows(
+	items []query.LogItem,
+	queryString string,
+	cursor query.LogCursor,
+	limit int,
+) {
 }
 
 templ AnalysisScript() {
