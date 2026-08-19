@@ -78,3 +78,30 @@ func GetLog(ctx context.Context, cursor int64) (query.LogItem, error) {
 
 	return log, err
 }
+
+// TODO: Add the rules input and initialize a rule engine to evaluate the jobs to create findings.
+func GetAnalysisLogs(ctx context.Context, queryString string, toCursor, fromCursor, currCursor query.LogCursor) (query.AnalysisLogPage, error) {
+	var analysisLogPage query.AnalysisLogPage
+
+	jobLogPath := os.Getenv("API_OBSERVER_JOB_LOG")
+
+	if jobLogPath == "" {
+		jobLogPath = "./logs/jobs.jsonl"
+	}
+
+	expr, err := query.ParseQuery(queryString)
+	if err != nil {
+		return query.AnalysisLogPage{}, err
+	}
+
+	logItems, curr, err := query.ReadJobLog(ctx, expr, jobLogPath, queryString, toCursor, fromCursor, currCursor, 25)
+	if err != nil {
+		return query.AnalysisLogPage{}, fmt.Errorf(
+			"failed to read log: %w",
+			err,
+		)
+	}
+	analysisLogPage.CurrentCursor = curr
+
+	return analysisLogPage, nil
+}

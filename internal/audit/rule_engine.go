@@ -301,12 +301,21 @@ func (r *ContractRegistry) HostExists(host string) bool {
 	return false
 }
 
-func (r *ContractRegistry) HasContract(host string) bool {
+func (r *ContractRegistry) HasOpenAPIContract(host string) bool {
 	if r == nil {
 		return false
 	}
 
 	_, ok := r.contracts[strings.ToLower(host)]
+	return ok
+}
+
+func (r *ContractRegistry) HasCustomRules(host string) bool {
+	if r == nil {
+		return false
+	}
+
+	_, ok := r.rules[strings.ToLower(host)]
 	return ok
 }
 
@@ -503,7 +512,6 @@ func getRules() []Rule {
 	}
 }
 
-// TODO: Update this to allow for custom rules to still apply even if there is no OpenAPI contract (ex. Rule for checking request query for possible SQL injection)
 func (e *RuleEngine) Evaluate(job Job, jobID string) ([]Finding, error) {
 	if e == nil || e.registry == nil {
 		return nil, nil
@@ -511,45 +519,52 @@ func (e *RuleEngine) Evaluate(job Job, jobID string) ([]Finding, error) {
 
 	meta := job.Metadata()
 
-	if !e.registry.HasContract(meta.Host) {
+	hasOpenAPI := e.registry.HasOpenAPIContract(meta.Host)
+	hasCustomRules := e.registry.HasCustomRules(meta.Host)
+
+	if !hasOpenAPI && !hasCustomRules {
 		return nil, nil
 	}
 
 	var findings []Finding
 
-	ctx := RuleContext{
-		Contracts: e.registry,
+	if hasOpenAPI {
+		ctx := RuleContext{
+			Contracts: e.registry,
+		}
+
+		for _, rule := range e.rules {
+			if !ruleApplies(rule, job.JobType()) {
+				continue
+			}
+
+			ruleFindings, err := rule.Check(ctx, job, jobID)
+			if err != nil {
+				return nil, err
+			}
+
+			findings = append(findings, ruleFindings...)
+		}
 	}
 
-	for _, rule := range e.rules {
-		if !ruleApplies(rule, job.JobType()) {
-			continue
+	if hasCustomRules {
+		customRules, ok := e.registry.rules[strings.ToLower(meta.Host)]
+		if !ok {
+			return findings, nil
 		}
 
-		ruleFindings, err := rule.Check(ctx, job, jobID)
-		if err != nil {
-			return nil, err
+		for ruleID, rule := range customRules.Rules {
+			if !customRuleApplies(rule, job.JobType()) || !rule.Enabled {
+				continue
+			}
+
+			ruleFindings, err := rule.CheckHostRule(job, jobID, ruleID)
+			if err != nil {
+				return nil, err
+			}
+
+			findings = append(findings, ruleFindings...)
 		}
-
-		findings = append(findings, ruleFindings...)
-	}
-
-	customRules, ok := e.registry.rules[strings.ToLower(meta.Host)]
-	if !ok {
-		return findings, nil
-	}
-
-	for ruleID, rule := range customRules.Rules {
-		if !customRuleApplies(rule, job.JobType()) || !rule.Enabled {
-			continue
-		}
-
-		ruleFindings, err := rule.CheckHostRule(job, jobID, ruleID)
-		if err != nil {
-			return nil, err
-		}
-
-		findings = append(findings, ruleFindings...)
 	}
 
 	return findings, nil

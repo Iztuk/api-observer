@@ -21,6 +21,13 @@ type LogPage struct {
 	Cursor LogCursor
 }
 
+type AnalysisLogPage struct {
+	Items         []LogItem
+	ToCursor      LogCursor
+	FromCursor    LogCursor
+	CurrentCursor LogCursor
+}
+
 type LogItem struct {
 	Job       audit.AuditJob
 	JobCursor LogCursor
@@ -36,7 +43,7 @@ func ReadLogs(
 	cursor LogCursor,
 	limit int,
 ) (LogPage, error) {
-	items, position, err := readJobLog(
+	items, position, err := readJobAndFindingsLog(
 		ctx,
 		expr,
 		queryString,
@@ -61,7 +68,7 @@ func ReadLog(
 	findingsPath string,
 	cursor LogCursor,
 ) (LogItem, error) {
-	item, err := readJobLogForward(
+	item, err := readJobAndFindingsLogForward(
 		ctx,
 		jobsPath,
 		findingsPath,
@@ -74,7 +81,7 @@ func ReadLog(
 	return item, nil
 }
 
-func readJobLog(
+func readJobAndFindingsLog(
 	ctx context.Context,
 	expr Expression,
 	queryString,
@@ -185,7 +192,7 @@ func readJobLog(
 	return items, LogCursor(position), nil
 }
 
-func readJobLogForward(
+func readJobAndFindingsLogForward(
 	ctx context.Context,
 	jobPath,
 	findingsPath string,
@@ -296,6 +303,113 @@ func findJobFindings(
 	}
 
 	return item, nil
+}
+
+func ReadJobLog(
+	ctx context.Context,
+	expr Expression,
+	jobPath,
+	queryString string,
+	toCursor,
+	fromCursor,
+	cursor LogCursor,
+	limit int,
+) ([]LogItem, LogCursor, error) {
+	file, err := os.Open(jobPath)
+	if err != nil {
+		return nil, -1, err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, -1, err
+	}
+
+	position := int64(cursor)
+
+	if cursor == 0 {
+		position = stat.Size()
+	}
+
+	items := make([]LogItem, 0, limit)
+
+	for len(items) < limit && position > 0 {
+		select {
+		case <-ctx.Done():
+			return nil, -1, ctx.Err()
+		default:
+		}
+
+		lineEnd := position
+		searchFrom := lineEnd - 1
+
+		var b [1]byte
+
+		if searchFrom >= 0 {
+			if _, err := file.ReadAt(b[:], searchFrom); err != nil {
+				return nil, -1, err
+			}
+
+			if b[0] == '\n' {
+				searchFrom--
+			}
+		}
+
+		lineStart := int64(0)
+
+		for searchFrom >= 0 {
+			if _, err := file.ReadAt(b[:], searchFrom); err != nil {
+				return nil, 0, err
+			}
+
+			if b[0] == '\n' {
+				lineStart = searchFrom + 1
+				break
+			}
+
+			searchFrom--
+		}
+
+		size := lineEnd - lineStart
+		line := make([]byte, size)
+
+		if _, err := file.ReadAt(line, lineStart); err != nil {
+			return nil, -1, err
+		}
+
+		// This becomes the starting point for the next older record.
+		position = lineStart
+
+		line = bytes.TrimSpace(line)
+
+		if len(line) == 0 {
+			continue
+		}
+
+		var job audit.AuditJob
+
+		if err := json.Unmarshal(line, &job); err != nil {
+			continue
+		}
+
+		item := LogItem{
+			Job:       job,
+			JobCursor: LogCursor(lineStart),
+			Findings:  make([]audit.Finding, 0),
+		}
+
+		valid, err := evaluateExpression(queryString, expr, item)
+		if err != nil {
+			return nil, -1, err
+		}
+
+		if valid {
+			items = append(items, item)
+		}
+	}
+
+	return items, LogCursor(position), nil
 }
 
 // This should only be called if the request does contain a To and From cursor in the URL query.
