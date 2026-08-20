@@ -309,6 +309,17 @@
   text-align: right;
 }
 
+/* Pagination sentinel */
+
+.log-load-more td {
+  padding: 0;
+  border: 0;
+}
+
+.log-load-trigger {
+  height: 1px;
+}
+
 /* Loading indicator */
 
 .log-loading-overlay {

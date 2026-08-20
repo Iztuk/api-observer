@@ -48,9 +48,9 @@ func main() {
 	server := &http.Server{
 		Addr:         observerAddress(),
 		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  10 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  30 * time.Second,
 	}
 
 	fileServer := http.FileServer(

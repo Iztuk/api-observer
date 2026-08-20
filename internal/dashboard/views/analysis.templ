@@ -135,9 +135,6 @@ templ AnalysisPageContent(
 								</thead>
 								<tbody
 									id="analysis-table-body"
-									hx-trigger="load"
-									hx-get={ fmt.Sprintf("/logs?query=%s&cursor=0&limit=25", queryString) }
-									hx-indicator="#log-loading"
 								></tbody>
 							</table>
 						</div>
@@ -175,12 +172,112 @@ templ AnalysisPageContent(
 	</div>
 }
 
+templ AnalysisResults(
+	queryString,
+	rules,
+	from,
+	to string,
+	cursor int,
+) {
+	<tr
+		hidden
+		hx-post={ fmt.Sprintf(
+			"/analysis/logs?query=%s&from=%s&to=%s&cursor=%d",
+			queryString,
+			from,
+			to,
+			cursor,
+		) }
+		hx-trigger="load"
+		hx-swap="outerHTML"
+		hx-include="this"
+	>
+		<td colspan="7">
+			<textarea
+				name="rules"
+				hidden
+			>{ rules }</textarea>
+		</td>
+	</tr>
+}
+
 templ AnalysisTableRows(
 	items []query.LogItem,
-	queryString string,
+	queryString,
+	from,
+	to,
+	rules string,
 	cursor query.LogCursor,
-	limit int,
 ) {
+	for _, item := range items {
+		<tr
+			class="log-row"
+			hx-get={ fmt.Sprintf(
+				"/logs/details?cursor=%d",
+				item.JobCursor,
+			) }
+			hx-trigger="click"
+			hx-target="#log-explorer-details"
+			hx-swap="innerHTML"
+		>
+			<td class="log-timestamp">
+				{ item.Job.Timestamp }
+			</td>
+			<td class="log-host">
+				{ item.Job.Host }
+			</td>
+			<td class="log-type">
+				{ item.Job.Type }
+			</td>
+			<td class="log-method">
+				{ item.Job.Method }
+			</td>
+			<td class="log-path">
+				{ item.Job.Path }
+			</td>
+			<td class="log-status">
+				if item.Job.Status > 0 {
+					{ fmt.Sprintf("%d", item.Job.Status) }
+				} else {
+					<span>-</span>
+				}
+			</td>
+			<td class="log-findings">
+				if len(item.Findings) > 0 {
+					{ fmt.Sprintf("%d", len(item.Findings)) }
+				} else {
+					<span>-</span>
+				}
+			</td>
+		</tr>
+	}
+
+	if len(items) > 0 {
+		<tr
+			class="log-load-more"
+			hx-post={ fmt.Sprintf(
+				"/analysis/logs?query=%s&from=%s&to=%s&cursor=%d",
+				queryString,
+				from,
+				to,
+				cursor,
+			) }
+			hx-trigger="intersect once"
+			hx-swap="outerHTML"
+			hx-include="this"
+			hx-indicator="#log-loading"
+		>
+			<td colspan="7" class="log-load-trigger">
+				<textarea name="rules" hidden>{ rules }</textarea>
+			</td>
+		</tr>
+	} else {
+		<tr class="log-end-row">
+			<td colspan="7">
+				End of logs
+			</td>
+		</tr>
+	}
 }
 
 templ AnalysisScript() {

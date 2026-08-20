@@ -21,13 +21,6 @@ type LogPage struct {
 	Cursor LogCursor
 }
 
-type AnalysisLogPage struct {
-	Items         []LogItem
-	ToCursor      LogCursor
-	FromCursor    LogCursor
-	CurrentCursor LogCursor
-}
-
 type LogItem struct {
 	Job       audit.AuditJob
 	JobCursor LogCursor
@@ -310,8 +303,7 @@ func ReadJobLog(
 	expr Expression,
 	jobPath,
 	queryString string,
-	toCursor,
-	fromCursor,
+	timeFrom time.Time,
 	cursor LogCursor,
 	limit int,
 ) ([]LogItem, LogCursor, error) {
@@ -393,6 +385,15 @@ func ReadJobLog(
 			continue
 		}
 
+		ts, err := time.Parse(time.RFC3339Nano, job.Timestamp)
+		if err != nil {
+			return nil, -1, err
+		}
+
+		if ts.Before(timeFrom) {
+			break
+		}
+
 		item := LogItem{
 			Job:       job,
 			JobCursor: LogCursor(lineStart),
@@ -412,19 +413,19 @@ func ReadJobLog(
 	return items, LogCursor(position), nil
 }
 
-// This should only be called if the request does contain a To and From cursor in the URL query.
-func FindToAndFromCursor(ctx context.Context, jobPath string, to, from time.Time) (LogCursor, LogCursor, error) {
-	var toCursor, fromCursor LogCursor = -1, -1
+// This should only be called if the request does contain a cursor and Time To in the URL query.
+func FindToCursor(ctx context.Context, jobPath string, to time.Time) (LogCursor, error) {
+	var toCursor LogCursor = -1
 
 	file, err := os.Open(jobPath)
 	if err != nil {
-		return -1, -1, err
+		return -1, err
 	}
 	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
-		return -1, -1, err
+		return -1, err
 	}
 
 	position := stat.Size()
@@ -432,7 +433,7 @@ func FindToAndFromCursor(ctx context.Context, jobPath string, to, from time.Time
 	for {
 		select {
 		case <-ctx.Done():
-			return -1, -1, ctx.Err()
+			return -1, ctx.Err()
 
 		default:
 		}
@@ -448,7 +449,7 @@ func FindToAndFromCursor(ctx context.Context, jobPath string, to, from time.Time
 
 		if searchFrom >= 0 {
 			if _, err := file.ReadAt(b[:], searchFrom); err != nil {
-				return -1, -1, err
+				return -1, err
 			}
 
 			if b[0] == '\n' {
@@ -460,7 +461,7 @@ func FindToAndFromCursor(ctx context.Context, jobPath string, to, from time.Time
 
 		for searchFrom >= 0 {
 			if _, err := file.ReadAt(b[:], searchFrom); err != nil {
-				return -1, -1, err
+				return -1, err
 			}
 
 			if b[0] == '\n' {
@@ -475,7 +476,7 @@ func FindToAndFromCursor(ctx context.Context, jobPath string, to, from time.Time
 		line := make([]byte, size)
 
 		if _, err := file.ReadAt(line, lineStart); err != nil {
-			return -1, -1, err
+			return -1, err
 		}
 
 		position = lineStart
@@ -503,17 +504,11 @@ func FindToAndFromCursor(ctx context.Context, jobPath string, to, from time.Time
 
 		if toCursor == -1 {
 			toCursor = LogCursor(lineEnd)
-		}
-
-		if jobTime.Before(from) {
-			fromCursor = LogCursor(lineEnd)
 			break
 		}
-
-		fromCursor = LogCursor(lineStart)
 	}
 
-	return toCursor, fromCursor, nil
+	return toCursor, nil
 }
 
 func ParseQuery(rawString string) (Expression, error) {

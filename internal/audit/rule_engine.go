@@ -228,8 +228,8 @@ func NewRuleEngine(registry *ContractRegistry) *RuleEngine {
 
 type ContractRegistry struct {
 	mu        sync.RWMutex
-	contracts map[string]OpenAPIDoc
-	rules     map[string]HostRulesDoc
+	contracts map[string]*OpenAPIDoc
+	rules     map[string]*HostRulesDoc
 }
 
 type RegisteredHost struct {
@@ -251,7 +251,7 @@ func (r *ContractRegistry) RegisteredHosts() []RegisteredHost {
 		entry := hosts[host]
 
 		entry.HostName = host
-		entry.Contract = &contract
+		entry.Contract = contract
 
 		hosts[host] = entry
 	}
@@ -260,7 +260,7 @@ func (r *ContractRegistry) RegisteredHosts() []RegisteredHost {
 		entry := hosts[host]
 
 		entry.HostName = host
-		entry.Rules = &rules
+		entry.Rules = rules
 
 		hosts[host] = entry
 	}
@@ -278,7 +278,7 @@ func (r *ContractRegistry) RegisteredHosts() []RegisteredHost {
 	return result
 }
 
-func (r *ContractRegistry) RegisterHost(host string, openapi OpenAPIDoc, hostrules HostRulesDoc) {
+func (r *ContractRegistry) RegisterHost(host string, openapi *OpenAPIDoc, hostrules *HostRulesDoc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -306,8 +306,8 @@ func (r *ContractRegistry) HasOpenAPIContract(host string) bool {
 		return false
 	}
 
-	_, ok := r.contracts[strings.ToLower(host)]
-	return ok
+	contract, ok := r.contracts[strings.ToLower(host)]
+	return ok && contract != nil
 }
 
 func (r *ContractRegistry) HasCustomRules(host string) bool {
@@ -315,8 +315,8 @@ func (r *ContractRegistry) HasCustomRules(host string) bool {
 		return false
 	}
 
-	_, ok := r.rules[strings.ToLower(host)]
-	return ok
+	rules, ok := r.rules[strings.ToLower(host)]
+	return ok && rules != nil
 }
 
 func (r *ContractRegistry) FindOperation(host, method, path string) (*OpenAPIOperation, bool) {
@@ -462,8 +462,8 @@ func (r *ContractRegistry) ResolveSchemaRef(host, ref string) (*OpenAPISchema, b
 
 func NewContractRegistry() *ContractRegistry {
 	return &ContractRegistry{
-		contracts: make(map[string]OpenAPIDoc),
-		rules:     make(map[string]HostRulesDoc),
+		contracts: make(map[string]*OpenAPIDoc),
+		rules:     make(map[string]*HostRulesDoc),
 	}
 }
 

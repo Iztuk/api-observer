@@ -33,6 +33,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /analysis", h.AnalysisPage)
 	mux.HandleFunc("POST /analysis/run", h.AnalysisRun)
+	mux.HandleFunc("POST /analysis/logs", h.GetAnalysisLogs)
 }
 
 func (h *Handler) LogExplorerPage(w http.ResponseWriter, r *http.Request) {
@@ -102,6 +103,7 @@ func (h *Handler) GetLogExplorerLogs(w http.ResponseWriter, r *http.Request) {
 			"Unable to render logs.",
 			http.StatusInternalServerError,
 		)
+		return
 	}
 }
 
@@ -115,6 +117,7 @@ func (h *Handler) GetLogExplorerLogDetails(w http.ResponseWriter, r *http.Reques
 			fmt.Sprintf("Unable to fetch log cursor. %s", err.Error()),
 			http.StatusInternalServerError,
 		)
+		return
 	}
 
 	item, err := GetLog(r.Context(), int64(cursor))
@@ -124,6 +127,7 @@ func (h *Handler) GetLogExplorerLogDetails(w http.ResponseWriter, r *http.Reques
 			fmt.Sprintf("Unable to fetch log. %s", err.Error()),
 			http.StatusInternalServerError,
 		)
+		return
 	}
 
 	if err := views.LogExplorerDetailSidebar(item).Render(r.Context(), w); err != nil {
@@ -132,6 +136,7 @@ func (h *Handler) GetLogExplorerLogDetails(w http.ResponseWriter, r *http.Reques
 			"Unable to render log details.",
 			http.StatusInternalServerError,
 		)
+		return
 	}
 }
 
@@ -173,17 +178,138 @@ func (h *Handler) AnalysisPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// This spawns the initial HTMX GET call
 func (h *Handler) AnalysisRun(w http.ResponseWriter, r *http.Request) {
 	queryString := r.FormValue("query")
-	// rules := r.FormValue("rules")
-	// timeFrom := r.FormValue("time_from")
-	// timeTo := r.FormValue("time_to")
+	rules := r.FormValue("rules")
+	from := r.FormValue("time_from")
+	to := r.FormValue("time_to")
 
-	if err := views.AnalysisTableRows(nil, queryString, 0, 25).Render(r.Context(), w); err != nil {
+	var timeTo time.Time
+	var err error
+	if to == "" {
+		timeTo = time.Now()
+	} else {
+		timeTo, err = ParseDateTimeInput(to)
+		if err != nil {
+			http.Error(
+				w,
+				"Invalid 'to' time.",
+				http.StatusBadRequest,
+			)
+			return
+		}
+	}
+
+	timeFrom, err := ParseDateTimeInput(from)
+	if err != nil {
 		http.Error(
 			w,
-			"Unable to render page content.",
+			"Invalid 'from' time.",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	cursor, err := GetAnalysisCursor(
+		r.Context(),
+		timeTo,
+	)
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("Unable to locate analysis cursor. %w", err),
 			http.StatusInternalServerError,
 		)
+		return
+	}
+
+	if err := views.AnalysisResults(queryString, rules, timeFrom.Format(time.RFC3339Nano), timeTo.Format(time.RFC3339Nano), int(cursor)).Render(r.Context(), w); err != nil {
+		http.Error(
+			w,
+			"Unable to render analysis results.",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+}
+
+func (h *Handler) GetAnalysisLogs(w http.ResponseWriter, r *http.Request) {
+	rules := r.FormValue("rules")
+
+	queryParams := r.URL.Query()
+
+	queryString := queryParams.Get("query")
+
+	cursorString := queryParams.Get("cursor")
+	cursor, err := strconv.Atoi(cursorString)
+	if err != nil {
+		http.Error(
+			w,
+			"Invalid cursor.",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	to := queryParams.Get("to")
+	from := queryParams.Get("from")
+
+	var timeTo time.Time
+	if to == "" {
+		timeTo = time.Now()
+	} else {
+		timeTo, err = time.Parse(time.RFC3339Nano, to)
+		if err != nil {
+			http.Error(
+				w,
+				"Invalid 'to' time.",
+				http.StatusBadRequest,
+			)
+			return
+		}
+	}
+
+	timeFrom, err := time.Parse(time.RFC3339Nano, from)
+	if err != nil {
+		http.Error(
+			w,
+			"Invalid 'from' time.",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	logPage, timeFrom, err := GetAnalysisLogs(
+		r.Context(),
+		queryString,
+		rules,
+		query.LogCursor(cursor),
+		timeFrom,
+		timeTo,
+	)
+	if err != nil {
+		http.Error(
+			w,
+			"Unable to fetch logs.",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	if err := views.AnalysisTableRows(
+		logPage.Items,
+		queryString,
+		timeFrom.Format(time.RFC3339Nano),
+		timeTo.Format(time.RFC3339Nano),
+		rules,
+		logPage.Cursor,
+	).Render(r.Context(), w); err != nil {
+		http.Error(
+			w,
+			"Unable to render analysis table rows.",
+			http.StatusInternalServerError,
+		)
+		return
 	}
 }

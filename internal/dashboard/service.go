@@ -3,8 +3,10 @@ package dashboard
 import (
 	"context"
 	"fmt"
+	"observer/internal/audit"
 	"observer/internal/query"
 	"os"
+	"time"
 )
 
 // type Service struct{}
@@ -79,9 +81,23 @@ func GetLog(ctx context.Context, cursor int64) (query.LogItem, error) {
 	return log, err
 }
 
-// TODO: Add the rules input and initialize a rule engine to evaluate the jobs to create findings.
-func GetAnalysisLogs(ctx context.Context, queryString string, toCursor, fromCursor, currCursor query.LogCursor) (query.AnalysisLogPage, error) {
-	var analysisLogPage query.AnalysisLogPage
+func GetAnalysisCursor(ctx context.Context, timeTo time.Time) (query.LogCursor, error) {
+	jobLogPath := os.Getenv("API_OBSERVER_JOB_LOG")
+
+	if jobLogPath == "" {
+		jobLogPath = "./logs/jobs.jsonl"
+	}
+
+	cursor, err := query.FindToCursor(ctx, jobLogPath, timeTo)
+	if err != nil {
+		return -1, err
+	}
+
+	return cursor, nil
+}
+
+func GetAnalysisLogs(ctx context.Context, queryString, analysisRules string, cursor query.LogCursor, timeFrom, timeTo time.Time) (query.LogPage, time.Time, error) {
+	var logPage query.LogPage
 
 	jobLogPath := os.Getenv("API_OBSERVER_JOB_LOG")
 
@@ -89,19 +105,74 @@ func GetAnalysisLogs(ctx context.Context, queryString string, toCursor, fromCurs
 		jobLogPath = "./logs/jobs.jsonl"
 	}
 
-	expr, err := query.ParseQuery(queryString)
+	rules, err := audit.ParseHostRules(analysisRules)
 	if err != nil {
-		return query.AnalysisLogPage{}, err
+		return query.LogPage{}, time.Time{}, err
 	}
 
-	logItems, curr, err := query.ReadJobLog(ctx, expr, jobLogPath, queryString, toCursor, fromCursor, currCursor, 25)
+	if cursor == -1 {
+		cursor, err = query.FindToCursor(ctx, jobLogPath, timeTo)
+		return query.LogPage{}, time.Time{}, fmt.Errorf(
+			"failed to identify 'To' cursor: %w",
+			err,
+		)
+	}
+
+	expr, err := query.ParseQuery(queryString)
 	if err != nil {
-		return query.AnalysisLogPage{}, fmt.Errorf(
+		return query.LogPage{}, time.Time{}, err
+	}
+
+	logItems, curr, err := query.ReadJobLog(ctx, expr, jobLogPath, queryString, timeFrom, cursor, 25)
+	if err != nil {
+		return query.LogPage{}, time.Time{}, fmt.Errorf(
 			"failed to read log: %w",
 			err,
 		)
 	}
-	analysisLogPage.CurrentCursor = curr
 
-	return analysisLogPage, nil
+	registry := audit.NewContractRegistry()
+
+	for _, logItem := range logItems {
+		host := logItem.Job.Host
+		if !registry.HostExists(host) {
+			registry.RegisterHost(host, nil, rules)
+		}
+	}
+
+	engine := audit.NewRuleEngine(registry)
+
+	for i, logItem := range logItems {
+		job, err := audit.JobFromAuditJob(logItem.Job)
+		if err != nil {
+			return query.LogPage{}, time.Time{}, err
+		}
+
+		findings, err := engine.Evaluate(job, logItem.Job.ID)
+		if err != nil {
+			return query.LogPage{}, time.Time{}, err
+		}
+
+		logItems[i].Findings = append(logItems[i].Findings, findings...)
+	}
+
+	logPage.Items = logItems
+	logPage.Cursor = curr
+
+	return logPage, timeFrom, nil
+}
+
+func ParseDateTimeInput(value string) (time.Time, error) {
+	const layout = "2006-01-02T15:04"
+
+	t, err := time.ParseInLocation(layout, value, time.UTC)
+	if err != nil {
+		return time.Time{}, fmt.Errorf(
+			"invalid datetime %q: %w",
+			value,
+			err,
+		)
+	}
+
+	return t, nil
 }

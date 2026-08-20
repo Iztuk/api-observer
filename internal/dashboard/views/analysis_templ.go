@@ -153,20 +153,7 @@ func AnalysisPageContent(
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</textarea> <button type=\"submit\">Run</button></div></form><div class=\"analysis-layout\"><nav class=\"analysis-tabs\" aria-label=\"Analysis views\"><button type=\"button\" class=\"analysis-tab active\" data-analysis-tab=\"logs\">Logs</button> <button type=\"button\" class=\"analysis-tab\" data-analysis-tab=\"statistics\">Statistics</button> <button type=\"button\" class=\"analysis-tab\" data-analysis-tab=\"rules\">Rules</button></nav><div class=\"analysis-view active\" data-analysis-view=\"logs\"><div class=\"log-explorer-layout\"><div class=\"log-explorer-main\"><div class=\"log-table-wrapper\"><div id=\"log-loading\" class=\"htmx-indicator log-loading-overlay\"><div class=\"log-loading\"><span class=\"loading-spinner\"></span> <span>Loading logs...</span></div></div><table class=\"log-table\"><thead><tr><th>Timestamp</th><th>Host</th><th>Type</th><th>Method</th><th>Path</th><th>Status</th><th>Findings</th></tr></thead> <tbody id=\"analysis-table-body\" hx-trigger=\"load\" hx-get=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/logs?query=%s&cursor=0&limit=25", queryString))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 139, Col: 78}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" hx-indicator=\"#log-loading\"></tbody></table></div></div><div id=\"log-explorer-details\"></div></div></div><div class=\"analysis-view\" data-analysis-view=\"statistics\"><div class=\"analysis-statistics\"><p>Statistics will go here.</p></div></div><div class=\"analysis-view\" data-analysis-view=\"rules\"><div class=\"analysis-rules\"><header class=\"analysis-section-header\"><div><h2>Rules</h2><p>Add the rules to include in this analysis.</p></div></header><div class=\"analysis-rules-list\"><div id=\"editor-container\"></div></div></div></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</textarea> <button type=\"submit\">Run</button></div></form><div class=\"analysis-layout\"><nav class=\"analysis-tabs\" aria-label=\"Analysis views\"><button type=\"button\" class=\"analysis-tab active\" data-analysis-tab=\"logs\">Logs</button> <button type=\"button\" class=\"analysis-tab\" data-analysis-tab=\"statistics\">Statistics</button> <button type=\"button\" class=\"analysis-tab\" data-analysis-tab=\"rules\">Rules</button></nav><div class=\"analysis-view active\" data-analysis-view=\"logs\"><div class=\"log-explorer-layout\"><div class=\"log-explorer-main\"><div class=\"log-table-wrapper\"><div id=\"log-loading\" class=\"htmx-indicator log-loading-overlay\"><div class=\"log-loading\"><span class=\"loading-spinner\"></span> <span>Loading logs...</span></div></div><table class=\"log-table\"><thead><tr><th>Timestamp</th><th>Host</th><th>Type</th><th>Method</th><th>Path</th><th>Status</th><th>Findings</th></tr></thead> <tbody id=\"analysis-table-body\"></tbody></table></div></div><div id=\"log-explorer-details\"></div></div></div><div class=\"analysis-view\" data-analysis-view=\"statistics\"><div class=\"analysis-statistics\"><p>Statistics will go here.</p></div></div><div class=\"analysis-view\" data-analysis-view=\"rules\"><div class=\"analysis-rules\"><header class=\"analysis-section-header\"><div><h2>Rules</h2><p>Add the rules to include in this analysis.</p></div></header><div class=\"analysis-rules-list\"><div id=\"editor-container\"></div></div></div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -174,11 +161,12 @@ func AnalysisPageContent(
 	})
 }
 
-func AnalysisTableRows(
-	items []query.LogItem,
-	queryString string,
-	cursor query.LogCursor,
-	limit int,
+func AnalysisResults(
+	queryString,
+	rules,
+	from,
+	to string,
+	cursor int,
 ) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -195,11 +183,249 @@ func AnalysisTableRows(
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var9 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var9 == nil {
-			templ_7745c5c3_Var9 = templ.NopComponent
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<tr hidden hx-post=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf(
+			"/analysis/logs?query=%s&from=%s&to=%s&cursor=%d",
+			queryString,
+			from,
+			to,
+			cursor,
+		))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 190, Col: 3}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" hx-trigger=\"load\" hx-swap=\"outerHTML\" hx-include=\"this\"><td colspan=\"7\"><textarea name=\"rules\" hidden>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(rules)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 199, Col: 11}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</textarea></td></tr>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func AnalysisTableRows(
+	items []query.LogItem,
+	queryString,
+	from,
+	to,
+	rules string,
+	cursor query.LogCursor,
+) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var11 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var11 == nil {
+			templ_7745c5c3_Var11 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		for _, item := range items {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<tr class=\"log-row\" hx-get=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var12 string
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf(
+				"/logs/details?cursor=%d",
+				item.JobCursor,
+			))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 218, Col: 4}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" hx-trigger=\"click\" hx-target=\"#log-explorer-details\" hx-swap=\"innerHTML\"><td class=\"log-timestamp\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var13 string
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(item.Job.Timestamp)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 224, Col: 24}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</td><td class=\"log-host\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var14 string
+			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(item.Job.Host)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 227, Col: 19}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</td><td class=\"log-type\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var15 string
+			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(item.Job.Type)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 230, Col: 19}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</td><td class=\"log-method\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var16 string
+			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(item.Job.Method)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 233, Col: 21}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</td><td class=\"log-path\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var17 string
+			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(item.Job.Path)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 236, Col: 19}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</td><td class=\"log-status\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if item.Job.Status > 0 {
+				var templ_7745c5c3_Var18 string
+				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", item.Job.Status))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 240, Col: 41}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<span>-</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</td><td class=\"log-findings\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if len(item.Findings) > 0 {
+				var templ_7745c5c3_Var19 string
+				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(item.Findings)))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 247, Col: 44}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span>-</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</td></tr>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		if len(items) > 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<tr class=\"log-load-more\" hx-post=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var20 string
+			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf(
+				"/analysis/logs?query=%s&from=%s&to=%s&cursor=%d",
+				queryString,
+				from,
+				to,
+				cursor,
+			))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 264, Col: 4}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" hx-trigger=\"intersect once\" hx-swap=\"outerHTML\" hx-include=\"this\" hx-indicator=\"#log-loading\"><td colspan=\"7\" class=\"log-load-trigger\"><textarea name=\"rules\" hidden>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var21 string
+			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(rules)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views/analysis.templ`, Line: 271, Col: 41}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</textarea></td></tr>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<tr class=\"log-end-row\"><td colspan=\"7\">End of logs</td></tr>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
 		return nil
 	})
 }
@@ -220,12 +446,12 @@ func AnalysisScript() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var10 == nil {
-			templ_7745c5c3_Var10 = templ.NopComponent
+		templ_7745c5c3_Var22 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var22 == nil {
+			templ_7745c5c3_Var22 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<script src=\"/static/monaco-editor-0.56.0/package/min/vs/loader.js\"></script><script>\n\t\t(() => {\n\t\t\t/*\n\t\t\t * Tabs\n\t\t\t */\n\t\t\tconst tabs = document.querySelectorAll(\"[data-analysis-tab]\");\n\n\t\t\tconst views = document.querySelectorAll(\"[data-analysis-view]\");\n\n\t\t\ttabs.forEach((tab) => {\n\t\t\t\ttab.addEventListener(\"click\", () => {\n\t\t\t\t\tconst selectedView = tab.dataset.analysisTab;\n\n\t\t\t\t\ttabs.forEach((item) => {\n\t\t\t\t\t\titem.classList.toggle(\"active\", item === tab);\n\t\t\t\t\t});\n\n\t\t\t\t\tviews.forEach((view) => {\n\t\t\t\t\t\tview.classList.toggle(\n\t\t\t\t\t\t\t\"active\",\n\t\t\t\t\t\t\tview.dataset.analysisView === selectedView,\n\t\t\t\t\t\t);\n\t\t\t\t\t});\n\n\t\t\t\t\tif (selectedView === \"rules\" && window.analysisRuleEditor) {\n\t\t\t\t\t\twindow.analysisRuleEditor.layout();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t/*\n\t\t\t * Monaco\n\t\t\t */\n\t\t\trequire.config({\n\t\t\t\tpaths: {\n\t\t\t\t\tvs: \"/static/monaco-editor-0.56.0/package/min/vs\",\n\t\t\t\t},\n\t\t\t});\n\n\t\t\trequire([\"vs/editor/editor.main\"], function () {\n\t\t\t\tconst editorContainer = document.getElementById(\"editor-container\");\n\n\t\t\t\tconst rulesInput = document.getElementById(\"analysis-rules-input\");\n\n\t\t\t\tconst editor = monaco.editor.create(editorContainer, {\n\t\t\t\t\tvalue:\n\t\t\t\t\t\trulesInput.value ||\n\t\t\t\t\t\t`rules:\n  `,\n\t\t\t\t\tlanguage: \"yaml\",\n\t\t\t\t\ttheme: \"vs-dark\",\n\t\t\t\t\tautomaticLayout: true,\n\n\t\t\t\t\tminimap: {\n\t\t\t\t\t\tenabled: false,\n\t\t\t\t\t},\n\n\t\t\t\t\tscrollBeyondLastLine: false,\n\t\t\t\t\tfontSize: 14,\n\t\t\t\t\ttabSize: 2,\n\t\t\t\t});\n\n\t\t\t\twindow.analysisRuleEditor = editor;\n\n\t\t\t\t/*\n\t\t\t\t * Keep hidden form field in sync.\n\t\t\t\t */\n\t\t\t\teditor.onDidChangeModelContent(() => {\n\t\t\t\t\trulesInput.value = editor.getValue();\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t/*\n\t\t\t * Make absolutely sure the latest editor\n\t\t\t * contents are submitted.\n\t\t\t */\n\t\t\tconst form = document.getElementById(\"analysis-query-form\");\n\n\t\t\tform.addEventListener(\"submit\", () => {\n\t\t\t\tconst rulesInput = document.getElementById(\"analysis-rules-input\");\n\n\t\t\t\tif (window.analysisRuleEditor) {\n\t\t\t\t\trulesInput.value = window.analysisRuleEditor.getValue();\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<script src=\"/static/monaco-editor-0.56.0/package/min/vs/loader.js\"></script><script>\n\t\t(() => {\n\t\t\t/*\n\t\t\t * Tabs\n\t\t\t */\n\t\t\tconst tabs = document.querySelectorAll(\"[data-analysis-tab]\");\n\n\t\t\tconst views = document.querySelectorAll(\"[data-analysis-view]\");\n\n\t\t\ttabs.forEach((tab) => {\n\t\t\t\ttab.addEventListener(\"click\", () => {\n\t\t\t\t\tconst selectedView = tab.dataset.analysisTab;\n\n\t\t\t\t\ttabs.forEach((item) => {\n\t\t\t\t\t\titem.classList.toggle(\"active\", item === tab);\n\t\t\t\t\t});\n\n\t\t\t\t\tviews.forEach((view) => {\n\t\t\t\t\t\tview.classList.toggle(\n\t\t\t\t\t\t\t\"active\",\n\t\t\t\t\t\t\tview.dataset.analysisView === selectedView,\n\t\t\t\t\t\t);\n\t\t\t\t\t});\n\n\t\t\t\t\tif (selectedView === \"rules\" && window.analysisRuleEditor) {\n\t\t\t\t\t\twindow.analysisRuleEditor.layout();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t/*\n\t\t\t * Monaco\n\t\t\t */\n\t\t\trequire.config({\n\t\t\t\tpaths: {\n\t\t\t\t\tvs: \"/static/monaco-editor-0.56.0/package/min/vs\",\n\t\t\t\t},\n\t\t\t});\n\n\t\t\trequire([\"vs/editor/editor.main\"], function () {\n\t\t\t\tconst editorContainer = document.getElementById(\"editor-container\");\n\n\t\t\t\tconst rulesInput = document.getElementById(\"analysis-rules-input\");\n\n\t\t\t\tconst editor = monaco.editor.create(editorContainer, {\n\t\t\t\t\tvalue:\n\t\t\t\t\t\trulesInput.value ||\n\t\t\t\t\t\t`rules:\n  `,\n\t\t\t\t\tlanguage: \"yaml\",\n\t\t\t\t\ttheme: \"vs-dark\",\n\t\t\t\t\tautomaticLayout: true,\n\n\t\t\t\t\tminimap: {\n\t\t\t\t\t\tenabled: false,\n\t\t\t\t\t},\n\n\t\t\t\t\tscrollBeyondLastLine: false,\n\t\t\t\t\tfontSize: 14,\n\t\t\t\t\ttabSize: 2,\n\t\t\t\t});\n\n\t\t\t\twindow.analysisRuleEditor = editor;\n\n\t\t\t\t/*\n\t\t\t\t * Keep hidden form field in sync.\n\t\t\t\t */\n\t\t\t\teditor.onDidChangeModelContent(() => {\n\t\t\t\t\trulesInput.value = editor.getValue();\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t/*\n\t\t\t * Make absolutely sure the latest editor\n\t\t\t * contents are submitted.\n\t\t\t */\n\t\t\tconst form = document.getElementById(\"analysis-query-form\");\n\n\t\t\tform.addEventListener(\"submit\", () => {\n\t\t\t\tconst rulesInput = document.getElementById(\"analysis-rules-input\");\n\n\t\t\t\tif (window.analysisRuleEditor) {\n\t\t\t\t\trulesInput.value = window.analysisRuleEditor.getValue();\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
