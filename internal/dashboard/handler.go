@@ -34,6 +34,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /analysis", h.AnalysisPage)
 	mux.HandleFunc("POST /analysis/run", h.AnalysisRun)
 	mux.HandleFunc("POST /analysis/logs", h.GetAnalysisLogs)
+	mux.HandleFunc("POST /analysis/logs/details", h.GetAnalysisLogDetails)
 }
 
 func (h *Handler) LogExplorerPage(w http.ResponseWriter, r *http.Request) {
@@ -308,6 +309,43 @@ func (h *Handler) GetAnalysisLogs(w http.ResponseWriter, r *http.Request) {
 		http.Error(
 			w,
 			"Unable to render analysis table rows.",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+}
+
+func (h *Handler) GetAnalysisLogDetails(w http.ResponseWriter, r *http.Request) {
+	rules := r.FormValue("rules")
+
+	fmt.Println("This is the rules:", rules)
+
+	queryParams := r.URL.Query()
+
+	cursor, err := strconv.Atoi(queryParams.Get("cursor"))
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("Unable to fetch log cursor. %s", err.Error()),
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	item, err := GetAnalysisLog(r.Context(), rules, int64(cursor))
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("Unable to fetch log. %s", err.Error()),
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	if err := views.LogExplorerDetailSidebar(item).Render(r.Context(), w); err != nil {
+		http.Error(
+			w,
+			"Unable to render log details.",
 			http.StatusInternalServerError,
 		)
 		return

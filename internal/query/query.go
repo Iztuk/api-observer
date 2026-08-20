@@ -298,7 +298,7 @@ func findJobFindings(
 	return item, nil
 }
 
-func ReadJobLog(
+func ReadJobLogs(
 	ctx context.Context,
 	expr Expression,
 	jobPath,
@@ -509,6 +509,63 @@ func FindToCursor(ctx context.Context, jobPath string, to time.Time) (LogCursor,
 	}
 
 	return toCursor, nil
+}
+
+func ReadJobLog(
+	ctx context.Context,
+	jobPath string,
+	cursor LogCursor,
+) (LogItem, error) {
+	file, err := os.Open(jobPath)
+	if err != nil {
+		return LogItem{}, err
+	}
+	defer file.Close()
+
+	if _, err := file.Seek(int64(cursor), io.SeekStart); err != nil {
+		return LogItem{}, err
+	}
+
+	reader := bufio.NewReader(file)
+
+	select {
+	case <-ctx.Done():
+		return LogItem{}, ctx.Err()
+	default:
+	}
+
+	line, err := reader.ReadBytes('\n')
+
+	if err != nil && !errors.Is(err, io.EOF) {
+		return LogItem{}, err
+	}
+
+	line = bytes.TrimSpace(line)
+
+	if len(line) == 0 {
+		return LogItem{}, fmt.Errorf(
+			"no log found at cursor %d",
+			cursor,
+		)
+	}
+
+	var job audit.AuditJob
+
+	if err := json.Unmarshal(line, &job); err != nil {
+		return LogItem{}, fmt.Errorf(
+			"failed to decode log at cursor %d: %w",
+			cursor,
+			err,
+		)
+	}
+
+	item := LogItem{
+		Job:       job,
+		JobCursor: cursor,
+		Findings:  make([]audit.Finding, 0),
+	}
+
+	return item, nil
 }
 
 func ParseQuery(rawString string) (Expression, error) {

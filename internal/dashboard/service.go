@@ -123,7 +123,7 @@ func GetAnalysisLogs(ctx context.Context, queryString, analysisRules string, cur
 		return query.LogPage{}, time.Time{}, err
 	}
 
-	logItems, curr, err := query.ReadJobLog(ctx, expr, jobLogPath, queryString, timeFrom, cursor, 25)
+	logItems, curr, err := query.ReadJobLogs(ctx, expr, jobLogPath, queryString, timeFrom, cursor, 25)
 	if err != nil {
 		return query.LogPage{}, time.Time{}, fmt.Errorf(
 			"failed to read log: %w",
@@ -160,6 +160,51 @@ func GetAnalysisLogs(ctx context.Context, queryString, analysisRules string, cur
 	logPage.Cursor = curr
 
 	return logPage, timeFrom, nil
+}
+
+func GetAnalysisLog(ctx context.Context, analysisRules string, cursor int64) (query.LogItem, error) {
+	jobLogPath := os.Getenv("API_OBSERVER_JOB_LOG")
+
+	if jobLogPath == "" {
+		jobLogPath = "./logs/jobs.jsonl"
+	}
+
+	rules, err := audit.ParseHostRules(analysisRules)
+	if err != nil {
+		return query.LogItem{}, err
+	}
+
+	log, err := query.ReadJobLog(
+		ctx,
+		jobLogPath,
+		query.LogCursor(cursor),
+	)
+	if err != nil {
+		return query.LogItem{}, fmt.Errorf(
+			"failed to read log: %w",
+			err,
+		)
+	}
+
+	registry := audit.NewContractRegistry()
+
+	registry.RegisterHost(log.Job.Host, nil, rules)
+
+	engine := audit.NewRuleEngine(registry)
+
+	job, err := audit.JobFromAuditJob(log.Job)
+	if err != nil {
+		return query.LogItem{}, err
+	}
+
+	findings, err := engine.Evaluate(job, log.Job.ID)
+	if err != nil {
+		return query.LogItem{}, err
+	}
+
+	log.Findings = append(log.Findings, findings...)
+
+	return log, err
 }
 
 func ParseDateTimeInput(value string) (time.Time, error) {

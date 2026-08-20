@@ -179,6 +179,16 @@ templ AnalysisResults(
 	to string,
 	cursor int,
 ) {
+	<tr hidden>
+		<td colspan="7">
+			<textarea
+				id="rules-input"
+				name="rules"
+				hidden
+			>{ rules }</textarea>
+		</td>
+	</tr>
+
 	<tr
 		hidden
 		hx-post={ fmt.Sprintf(
@@ -190,14 +200,9 @@ templ AnalysisResults(
 		) }
 		hx-trigger="load"
 		hx-swap="outerHTML"
-		hx-include="this"
+		hx-include="#rules-input"
 	>
-		<td colspan="7">
-			<textarea
-				name="rules"
-				hidden
-			>{ rules }</textarea>
-		</td>
+		<td colspan="7"></td>
 	</tr>
 }
 
@@ -212,13 +217,14 @@ templ AnalysisTableRows(
 	for _, item := range items {
 		<tr
 			class="log-row"
-			hx-get={ fmt.Sprintf(
-				"/logs/details?cursor=%d",
+			hx-post={ fmt.Sprintf(
+				"/analysis/logs/details?cursor=%d",
 				item.JobCursor,
 			) }
 			hx-trigger="click"
 			hx-target="#log-explorer-details"
 			hx-swap="innerHTML"
+            hx-include="#rules-input"
 		>
 			<td class="log-timestamp">
 				{ item.Job.Timestamp }
@@ -251,7 +257,6 @@ templ AnalysisTableRows(
 			</td>
 		</tr>
 	}
-
 	if len(items) > 0 {
 		<tr
 			class="log-load-more"
@@ -264,13 +269,9 @@ templ AnalysisTableRows(
 			) }
 			hx-trigger="intersect once"
 			hx-swap="outerHTML"
-			hx-include="this"
+			hx-include="#rules-input"
 			hx-indicator="#log-loading"
-		>
-			<td colspan="7" class="log-load-trigger">
-				<textarea name="rules" hidden>{ rules }</textarea>
-			</td>
-		</tr>
+		></tr>
 	} else {
 		<tr class="log-end-row">
 			<td colspan="7">
