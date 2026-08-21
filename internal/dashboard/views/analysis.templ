@@ -21,7 +21,7 @@ templ AnalysisPage(
 		)
 	}
 	@AnalysisScript()
-    @LogExplorerDetailSidebarScript()
+	@LogExplorerDetailSidebarScript()
 }
 
 templ AnalysisPageContent(
@@ -43,7 +43,7 @@ templ AnalysisPageContent(
 			hx-post="/analysis/run"
 			hx-target="#analysis-table-body"
 			hx-swap="innerHTML swap:300ms"
-            hx-indicator="#log-loading"
+			hx-indicator="#log-loading"
 		>
 			<div class="analysis-time-range">
 				<div class="analysis-time-field">
@@ -92,7 +92,7 @@ templ AnalysisPageContent(
 				>
 					Logs
 				</button>
-								<button
+				<button
 					type="button"
 					class="analysis-tab"
 					data-analysis-tab="rules"
@@ -183,7 +183,6 @@ templ AnalysisResults(
 			>{ rules }</textarea>
 		</td>
 	</tr>
-
 	<tr
 		hidden
 		hx-post={ fmt.Sprintf(
@@ -219,7 +218,7 @@ templ AnalysisTableRows(
 			hx-trigger="click"
 			hx-target="#log-explorer-details"
 			hx-swap="innerHTML"
-            hx-include="#rules-input"
+			hx-include="#rules-input"
 		>
 			<td class="log-timestamp">
 				{ item.Job.Timestamp }

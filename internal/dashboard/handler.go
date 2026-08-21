@@ -29,7 +29,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /logs", h.GetLogExplorerLogs)
 	mux.HandleFunc("GET /logs/details", h.GetLogExplorerLogDetails)
 
-	mux.HandleFunc("GET /rules", h.RulesPage)
+	// mux.HandleFunc("GET /rules", h.RulesPage)
 
 	mux.HandleFunc("GET /analysis", h.AnalysisPage)
 	mux.HandleFunc("POST /analysis/run", h.AnalysisRun)
@@ -141,16 +141,17 @@ func (h *Handler) GetLogExplorerLogDetails(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (h *Handler) RulesPage(w http.ResponseWriter, r *http.Request) {
-
-	if err := views.RulesPage("Rules", h.Registry.RegisteredHosts()).Render(r.Context(), w); err != nil {
-		http.Error(
-			w,
-			"Unable to render rules page.",
-			http.StatusInternalServerError,
-		)
-	}
-}
+// Disabling for now until retry mechanism is established for hosts
+// func (h *Handler) RulesPage(w http.ResponseWriter, r *http.Request) {
+//
+// 	if err := views.RulesPage("Rules", h.Registry.RegisteredHosts()).Render(r.Context(), w); err != nil {
+// 		http.Error(
+// 			w,
+// 			"Unable to render rules page.",
+// 			http.StatusInternalServerError,
+// 		)
+// 	}
+// }
 
 func (h *Handler) AnalysisPage(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
