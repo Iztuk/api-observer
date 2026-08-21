@@ -172,7 +172,7 @@ func readJobAndFindingsLog(
 			return nil, 0, err
 		}
 
-		valid, err := evaluateExpression(queryString, expr, item)
+		valid, err := EvaluateExpression(queryString, expr, item)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -300,22 +300,20 @@ func findJobFindings(
 
 func ReadJobLogs(
 	ctx context.Context,
-	expr Expression,
-	jobPath,
-	queryString string,
+	jobPath string,
 	timeFrom time.Time,
 	cursor LogCursor,
 	limit int,
-) ([]LogItem, LogCursor, error) {
+) ([]LogItem, LogCursor, bool, error) {
 	file, err := os.Open(jobPath)
 	if err != nil {
-		return nil, -1, err
+		return nil, -1, false, err
 	}
 	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
-		return nil, -1, err
+		return nil, -1, false, err
 	}
 
 	position := int64(cursor)
@@ -325,11 +323,12 @@ func ReadJobLogs(
 	}
 
 	items := make([]LogItem, 0, limit)
+	end := false
 
 	for len(items) < limit && position > 0 {
 		select {
 		case <-ctx.Done():
-			return nil, -1, ctx.Err()
+			return nil, -1, false, ctx.Err()
 		default:
 		}
 
@@ -340,7 +339,7 @@ func ReadJobLogs(
 
 		if searchFrom >= 0 {
 			if _, err := file.ReadAt(b[:], searchFrom); err != nil {
-				return nil, -1, err
+				return nil, -1, false, err
 			}
 
 			if b[0] == '\n' {
@@ -352,7 +351,7 @@ func ReadJobLogs(
 
 		for searchFrom >= 0 {
 			if _, err := file.ReadAt(b[:], searchFrom); err != nil {
-				return nil, 0, err
+				return nil, 0, false, err
 			}
 
 			if b[0] == '\n' {
@@ -367,7 +366,7 @@ func ReadJobLogs(
 		line := make([]byte, size)
 
 		if _, err := file.ReadAt(line, lineStart); err != nil {
-			return nil, -1, err
+			return nil, -1, false, err
 		}
 
 		// This becomes the starting point for the next older record.
@@ -387,10 +386,11 @@ func ReadJobLogs(
 
 		ts, err := time.Parse(time.RFC3339Nano, job.Timestamp)
 		if err != nil {
-			return nil, -1, err
+			return nil, -1, false, err
 		}
 
 		if ts.Before(timeFrom) {
+			end = true
 			break
 		}
 
@@ -400,17 +400,15 @@ func ReadJobLogs(
 			Findings:  make([]audit.Finding, 0),
 		}
 
-		valid, err := evaluateExpression(queryString, expr, item)
-		if err != nil {
-			return nil, -1, err
-		}
+		// valid, err := EvaluateExpression(queryString, expr, item)
+		// if err != nil {
+		// 	return nil, -1, err
+		// }
 
-		if valid {
-			items = append(items, item)
-		}
+		items = append(items, item)
 	}
 
-	return items, LogCursor(position), nil
+	return items, LogCursor(position), end, nil
 }
 
 // This should only be called if the request does contain a cursor and Time To in the URL query.

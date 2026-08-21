@@ -112,10 +112,12 @@ func GetAnalysisLogs(ctx context.Context, queryString, analysisRules string, cur
 
 	if cursor == -1 {
 		cursor, err = query.FindToCursor(ctx, jobLogPath, timeTo)
-		return query.LogPage{}, time.Time{}, fmt.Errorf(
-			"failed to identify 'To' cursor: %w",
-			err,
-		)
+		if err != nil {
+			return query.LogPage{}, time.Time{}, fmt.Errorf(
+				"failed to identify 'To' cursor: %w",
+				err,
+			)
+		}
 	}
 
 	expr, err := query.ParseQuery(queryString)
@@ -123,41 +125,58 @@ func GetAnalysisLogs(ctx context.Context, queryString, analysisRules string, cur
 		return query.LogPage{}, time.Time{}, err
 	}
 
-	logItems, curr, err := query.ReadJobLogs(ctx, expr, jobLogPath, queryString, timeFrom, cursor, 25)
-	if err != nil {
-		return query.LogPage{}, time.Time{}, fmt.Errorf(
-			"failed to read log: %w",
-			err,
-		)
-	}
-
 	registry := audit.NewContractRegistry()
-
-	for _, logItem := range logItems {
-		host := logItem.Job.Host
-		if !registry.HostExists(host) {
-			registry.RegisterHost(host, nil, rules)
-		}
-	}
-
 	engine := audit.NewRuleEngine(registry)
 
-	for i, logItem := range logItems {
-		job, err := audit.JobFromAuditJob(logItem.Job)
+	logItems := make([]query.LogItem, 0)
+	for len(logItems) < 25 {
+		items, curr, end, err := query.ReadJobLogs(ctx, jobLogPath, timeFrom, cursor, 25-len(logItems))
 		if err != nil {
-			return query.LogPage{}, time.Time{}, err
+			return query.LogPage{}, time.Time{}, fmt.Errorf(
+				"failed to read log: %w",
+				err,
+			)
 		}
 
-		findings, err := engine.Evaluate(job, logItem.Job.ID)
-		if err != nil {
-			return query.LogPage{}, time.Time{}, err
+		for i, item := range items {
+			host := item.Job.Host
+			if !registry.HostExists(host) {
+				registry.RegisterHost(host, nil, rules)
+			}
+
+			job, err := audit.JobFromAuditJob(item.Job)
+			if err != nil {
+				return query.LogPage{}, time.Time{}, err
+			}
+
+			findings, err := engine.Evaluate(job, item.Job.ID)
+			if err != nil {
+				return query.LogPage{}, time.Time{}, err
+			}
+
+			items[i].Findings = append(items[i].Findings, findings...)
+
+			// Query evaluation
+			valid, err := query.EvaluateExpression(queryString, expr, items[i])
+			if err != nil {
+				return query.LogPage{}, time.Time{}, err
+			}
+
+			if valid {
+				logItems = append(logItems, items[i])
+			}
 		}
 
-		logItems[i].Findings = append(logItems[i].Findings, findings...)
+		cursor = curr
+
+		// Case where there are less than 25 logs
+		if end {
+			break
+		}
 	}
 
 	logPage.Items = logItems
-	logPage.Cursor = curr
+	logPage.Cursor = cursor
 
 	return logPage, timeFrom, nil
 }

@@ -318,8 +318,6 @@ func (h *Handler) GetAnalysisLogs(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAnalysisLogDetails(w http.ResponseWriter, r *http.Request) {
 	rules := r.FormValue("rules")
 
-	fmt.Println("This is the rules:", rules)
-
 	queryParams := r.URL.Query()
 
 	cursor, err := strconv.Atoi(queryParams.Get("cursor"))
