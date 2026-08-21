@@ -70,7 +70,7 @@ func (h *Handler) RegisterClient(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Registry.RegisterHost(client.HostName, *client.OpenAPI, *client.HostRules)
+		h.Registry.RegisterHost(client.HostName, client.OpenAPI, client.HostRules)
 	}
 
 	w.WriteHeader(http.StatusOK)

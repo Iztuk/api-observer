@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func evaluateExpression(
+func EvaluateExpression(
 	queryString string,
 	expr Expression,
 	item LogItem,
@@ -24,7 +24,7 @@ func evaluateExpression(
 		)
 
 	case AndExpression:
-		left, err := evaluateExpression(
+		left, err := EvaluateExpression(
 			queryString,
 			expr.Left,
 			item,
@@ -37,14 +37,14 @@ func evaluateExpression(
 			return false, nil
 		}
 
-		return evaluateExpression(
+		return EvaluateExpression(
 			queryString,
 			expr.Right,
 			item,
 		)
 
 	case OrExpression:
-		left, err := evaluateExpression(
+		left, err := EvaluateExpression(
 			queryString,
 			expr.Left,
 			item,
@@ -57,14 +57,14 @@ func evaluateExpression(
 			return true, nil
 		}
 
-		return evaluateExpression(
+		return EvaluateExpression(
 			queryString,
 			expr.Right,
 			item,
 		)
 
 	case NotExpression:
-		result, err := evaluateExpression(
+		result, err := EvaluateExpression(
 			queryString,
 			expr.Expression,
 			item,

@@ -228,8 +228,8 @@ func NewRuleEngine(registry *ContractRegistry) *RuleEngine {
 
 type ContractRegistry struct {
 	mu        sync.RWMutex
-	contracts map[string]OpenAPIDoc
-	rules     map[string]HostRulesDoc
+	contracts map[string]*OpenAPIDoc
+	rules     map[string]*HostRulesDoc
 }
 
 type RegisteredHost struct {
@@ -251,7 +251,7 @@ func (r *ContractRegistry) RegisteredHosts() []RegisteredHost {
 		entry := hosts[host]
 
 		entry.HostName = host
-		entry.Contract = &contract
+		entry.Contract = contract
 
 		hosts[host] = entry
 	}
@@ -260,7 +260,7 @@ func (r *ContractRegistry) RegisteredHosts() []RegisteredHost {
 		entry := hosts[host]
 
 		entry.HostName = host
-		entry.Rules = &rules
+		entry.Rules = rules
 
 		hosts[host] = entry
 	}
@@ -278,7 +278,7 @@ func (r *ContractRegistry) RegisteredHosts() []RegisteredHost {
 	return result
 }
 
-func (r *ContractRegistry) RegisterHost(host string, openapi OpenAPIDoc, hostrules HostRulesDoc) {
+func (r *ContractRegistry) RegisterHost(host string, openapi *OpenAPIDoc, hostrules *HostRulesDoc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -301,13 +301,22 @@ func (r *ContractRegistry) HostExists(host string) bool {
 	return false
 }
 
-func (r *ContractRegistry) HasContract(host string) bool {
+func (r *ContractRegistry) HasOpenAPIContract(host string) bool {
 	if r == nil {
 		return false
 	}
 
-	_, ok := r.contracts[strings.ToLower(host)]
-	return ok
+	contract, ok := r.contracts[strings.ToLower(host)]
+	return ok && contract != nil
+}
+
+func (r *ContractRegistry) HasCustomRules(host string) bool {
+	if r == nil {
+		return false
+	}
+
+	rules, ok := r.rules[strings.ToLower(host)]
+	return ok && rules != nil
 }
 
 func (r *ContractRegistry) FindOperation(host, method, path string) (*OpenAPIOperation, bool) {
@@ -453,8 +462,8 @@ func (r *ContractRegistry) ResolveSchemaRef(host, ref string) (*OpenAPISchema, b
 
 func NewContractRegistry() *ContractRegistry {
 	return &ContractRegistry{
-		contracts: make(map[string]OpenAPIDoc),
-		rules:     make(map[string]HostRulesDoc),
+		contracts: make(map[string]*OpenAPIDoc),
+		rules:     make(map[string]*HostRulesDoc),
 	}
 }
 
@@ -503,7 +512,6 @@ func getRules() []Rule {
 	}
 }
 
-// TODO: Update this to allow for custom rules to still apply even if there is no OpenAPI contract (ex. Rule for checking request query for possible SQL injection)
 func (e *RuleEngine) Evaluate(job Job, jobID string) ([]Finding, error) {
 	if e == nil || e.registry == nil {
 		return nil, nil
@@ -511,45 +519,52 @@ func (e *RuleEngine) Evaluate(job Job, jobID string) ([]Finding, error) {
 
 	meta := job.Metadata()
 
-	if !e.registry.HasContract(meta.Host) {
+	hasOpenAPI := e.registry.HasOpenAPIContract(meta.Host)
+	hasCustomRules := e.registry.HasCustomRules(meta.Host)
+
+	if !hasOpenAPI && !hasCustomRules {
 		return nil, nil
 	}
 
 	var findings []Finding
 
-	ctx := RuleContext{
-		Contracts: e.registry,
+	if hasOpenAPI {
+		ctx := RuleContext{
+			Contracts: e.registry,
+		}
+
+		for _, rule := range e.rules {
+			if !ruleApplies(rule, job.JobType()) {
+				continue
+			}
+
+			ruleFindings, err := rule.Check(ctx, job, jobID)
+			if err != nil {
+				return nil, err
+			}
+
+			findings = append(findings, ruleFindings...)
+		}
 	}
 
-	for _, rule := range e.rules {
-		if !ruleApplies(rule, job.JobType()) {
-			continue
+	if hasCustomRules {
+		customRules, ok := e.registry.rules[strings.ToLower(meta.Host)]
+		if !ok {
+			return findings, nil
 		}
 
-		ruleFindings, err := rule.Check(ctx, job, jobID)
-		if err != nil {
-			return nil, err
+		for ruleID, rule := range customRules.Rules {
+			if !customRuleApplies(rule, job.JobType()) || !rule.Enabled {
+				continue
+			}
+
+			ruleFindings, err := rule.CheckHostRule(job, jobID, ruleID)
+			if err != nil {
+				return nil, err
+			}
+
+			findings = append(findings, ruleFindings...)
 		}
-
-		findings = append(findings, ruleFindings...)
-	}
-
-	customRules, ok := e.registry.rules[strings.ToLower(meta.Host)]
-	if !ok {
-		return findings, nil
-	}
-
-	for ruleID, rule := range customRules.Rules {
-		if !customRuleApplies(rule, job.JobType()) || !rule.Enabled {
-			continue
-		}
-
-		ruleFindings, err := rule.CheckHostRule(job, jobID, ruleID)
-		if err != nil {
-			return nil, err
-		}
-
-		findings = append(findings, ruleFindings...)
 	}
 
 	return findings, nil
