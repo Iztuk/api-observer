@@ -21,6 +21,7 @@ templ AnalysisPage(
 		)
 	}
 	@AnalysisScript()
+    @LogExplorerDetailSidebarScript()
 }
 
 templ AnalysisPageContent(
@@ -41,7 +42,8 @@ templ AnalysisPageContent(
 			class="analysis-query"
 			hx-post="/analysis/run"
 			hx-target="#analysis-table-body"
-			hx-swap="innerHTML"
+			hx-swap="innerHTML swap:300ms"
+            hx-indicator="#log-loading"
 		>
 			<div class="analysis-time-range">
 				<div class="analysis-time-field">
@@ -90,14 +92,7 @@ templ AnalysisPageContent(
 				>
 					Logs
 				</button>
-				<button
-					type="button"
-					class="analysis-tab"
-					data-analysis-tab="statistics"
-				>
-					Statistics
-				</button>
-				<button
+								<button
 					type="button"
 					class="analysis-tab"
 					data-analysis-tab="rules"
