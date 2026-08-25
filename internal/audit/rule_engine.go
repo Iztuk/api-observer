@@ -533,6 +533,7 @@ func (e *RuleEngine) Evaluate(job Job, jobID string) ([]Finding, error) {
 			Contracts: e.registry,
 		}
 
+	openAPIRules:
 		for _, rule := range e.rules {
 			if !ruleApplies(rule, job.JobType()) {
 				continue
@@ -544,6 +545,15 @@ func (e *RuleEngine) Evaluate(job Job, jobID string) ([]Finding, error) {
 			}
 
 			findings = append(findings, ruleFindings...)
+
+			// NOTE: Early return has an ordering dependency based on the constant RuleID values
+			if len(ruleFindings) > 0 {
+				switch rule.ID() {
+				case RuleRequestPathDoesNotExist,
+					RuleRequestMethodNotAllowed:
+					break openAPIRules
+				}
+			}
 		}
 	}
 
