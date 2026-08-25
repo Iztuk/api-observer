@@ -30,11 +30,11 @@ paths:
       tags: [health]
       security: []
       responses:
-        '200':
+        "200":
           description: Healthy
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/HealthStatus' }
+              schema: { $ref: "#/components/schemas/HealthStatus" }
 
   /auth/login:
     post:
@@ -45,51 +45,82 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/LoginRequest' }
+            schema: { $ref: "#/components/schemas/LoginRequest" }
       responses:
-        '200':
+        "200":
           description: Logged in
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/LoginResponse' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /auth/logout:
     post:
       operationId: logout
       tags: [auth]
       responses:
-        '204': { description: Logged out }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+        "204": { description: Logged out }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /auth/me:
     get:
       operationId: getCurrentUser
       tags: [auth]
       responses:
-        '200':
+        "200":
           description: Current user
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+              schema:
+                $ref: "#/components/schemas/User"
 
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /users:
     get:
       operationId: listUsers
       tags: [users]
       summary: Admin-only user listing
       responses:
-        '200':
+        "200":
           description: Users
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/User' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+                items: { $ref: "#/components/schemas/User" }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     post:
       operationId: registerUser
       tags: [users]
@@ -98,30 +129,50 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/NewUser' }
+            schema: { $ref: "#/components/schemas/NewUser" }
       responses:
-        '201':
+        "201":
           description: User created
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+              schema: { $ref: "#/components/schemas/User" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /users/{id}:
     parameters:
-      - $ref: '#/components/parameters/UserId'
+      - $ref: "#/components/parameters/UserId"
     get:
       operationId: getUser
       tags: [users]
       responses:
-        '200':
+        "200":
           description: User
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema: { $ref: "#/components/schemas/User" }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     patch:
       operationId: updateUser
       tags: [users]
@@ -129,30 +180,65 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/UserUpdate' }
+            schema: { $ref: "#/components/schemas/UserUpdate" }
       responses:
-        '200':
+        "200":
           description: User updated
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema: { $ref: "#/components/schemas/User" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     delete:
       operationId: deleteUser
       tags: [users]
       summary: Admin-only user deletion
       responses:
-        '204': { description: User deleted }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        "204": { description: User deleted }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /users/{id}/role:
     parameters:
-      - $ref: '#/components/parameters/UserId'
+      - $ref: "#/components/parameters/UserId"
     put:
       operationId: updateUserRole
       tags: [users]
@@ -164,30 +250,50 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RoleUpdate' }
+            schema: { $ref: "#/components/schemas/RoleUpdate" }
       responses:
-        '200':
+        "200":
           description: Role updated
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+              schema: { $ref: "#/components/schemas/User" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /projects:
     get:
       operationId: listProjects
       tags: [projects]
       responses:
-        '200':
+        "200":
           description: Projects owned by current user
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Project' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+                items: { $ref: "#/components/schemas/Project" }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     post:
       operationId: createProject
       tags: [projects]
@@ -195,33 +301,58 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/NewProject' }
+            schema: { $ref: "#/components/schemas/NewProject" }
       responses:
-        '201':
+        "201":
           description: Project created
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Project' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+              schema: { $ref: "#/components/schemas/Project" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /projects/{id}:
     parameters:
-      - $ref: '#/components/parameters/ProjectId'
+      - $ref: "#/components/parameters/ProjectId"
     get:
       operationId: getProject
       tags: [projects]
       summary: Owner/admin-only project access by contract
       description: Implementation intentionally omits ownership checks for A01 testing.
       responses:
-        '200':
+        "200":
           description: Project
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Project' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema: { $ref: "#/components/schemas/Project" }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     patch:
       operationId: updateProject
       tags: [projects]
@@ -230,44 +361,94 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ProjectUpdate' }
+            schema: { $ref: "#/components/schemas/ProjectUpdate" }
       responses:
-        '200':
+        "200":
           description: Project updated
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Project' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema: { $ref: "#/components/schemas/Project" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     delete:
       operationId: deleteProject
       tags: [projects]
       description: Implementation intentionally omits ownership checks for A01 testing.
       responses:
-        '204': { description: Project deleted }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        "204": { description: Project deleted }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /projects/{projectID}/tasks:
     parameters:
-      - $ref: '#/components/parameters/ProjectIdNamed'
+      - $ref: "#/components/parameters/ProjectIdNamed"
     get:
       operationId: listTasks
       tags: [tasks]
       responses:
-        '200':
+        "200":
           description: Tasks
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Task' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                items: { $ref: "#/components/schemas/Task" }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     post:
       operationId: createTask
       tags: [tasks]
@@ -275,30 +456,50 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/NewTask' }
+            schema: { $ref: "#/components/schemas/NewTask" }
       responses:
-        '201':
+        "201":
           description: Task created
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Task' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+              schema: { $ref: "#/components/schemas/Task" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /tasks/{id}:
     parameters:
-      - $ref: '#/components/parameters/TaskId'
+      - $ref: "#/components/parameters/TaskId"
     get:
       operationId: getTask
       tags: [tasks]
       responses:
-        '200':
+        "200":
           description: Task
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Task' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema: { $ref: "#/components/schemas/Task" }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     patch:
       operationId: updateTask
       tags: [tasks]
@@ -306,23 +507,48 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/TaskUpdate' }
+            schema: { $ref: "#/components/schemas/TaskUpdate" }
       responses:
-        '200':
+        "200":
           description: Task updated
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Task' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema: { $ref: "#/components/schemas/Task" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     delete:
       operationId: deleteTask
       tags: [tasks]
       responses:
-        '204': { description: Task deleted }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        "204": { description: Task deleted }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /search/users:
     get:
@@ -337,15 +563,25 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        '200':
+        "200":
           description: Matching users
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/User' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+                items: { $ref: "#/components/schemas/User" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /search/projects:
     post:
@@ -355,17 +591,27 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ProjectSearchRequest' }
+            schema: { $ref: "#/components/schemas/ProjectSearchRequest" }
       responses:
-        '200':
+        "200":
           description: Projects
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Project' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+                items: { $ref: "#/components/schemas/Project" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /files:
     get:
@@ -379,13 +625,23 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        '200':
+        "200":
           description: Synthetic file result
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/FileResult' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+              schema: { $ref: "#/components/schemas/FileResult" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /reports/{name}:
     get:
@@ -399,12 +655,17 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        '200':
+        "200":
           description: Synthetic report
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Report' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+              schema: { $ref: "#/components/schemas/Report" }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /admin/debug:
     get:
@@ -413,14 +674,14 @@ paths:
       security: []
       description: Intentionally unauthenticated debug information for A02 testing.
       responses:
-        '200':
+        "200":
           description: Debug information
           headers:
             X-Powered-By:
               schema: { type: string }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/DebugInfo' }
+              schema: { $ref: "#/components/schemas/DebugInfo" }
 
   /admin/error:
     get:
@@ -429,37 +690,57 @@ paths:
       security: []
       description: Intentionally verbose synthetic 500 response for A02 testing.
       responses:
-        '500':
+        "500":
           description: Synthetic internal error
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/InternalError' }
+              schema: { $ref: "#/components/schemas/InternalError" }
 
   /admin/stats:
     get:
       operationId: getAdminStats
       tags: [admin]
       responses:
-        '200':
+        "200":
           description: Statistics
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/AdminStats' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+              schema: { $ref: "#/components/schemas/AdminStats" }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /admin/config:
     get:
       operationId: getAdminConfig
       tags: [admin]
       responses:
-        '200':
+        "200":
           description: Configuration
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ConfigurationInfo' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+              schema: { $ref: "#/components/schemas/ConfigurationInfo" }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /audit/events:
     get:
@@ -469,15 +750,25 @@ paths:
         Returns the application's intentionally incomplete audit log. Compare it
         with API Observer capture for A09 evaluation.
       responses:
-        '200':
+        "200":
           description: Audit events
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/AuditEvent' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+                items: { $ref: "#/components/schemas/AuditEvent" }
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
 components:
   securitySchemes:
@@ -506,28 +797,6 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
-
-  responses:
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    Unauthorized:
-      description: Missing or invalid authentication
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    Forbidden:
-      description: Permission denied
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
 
   schemas:
     HealthStatus:
