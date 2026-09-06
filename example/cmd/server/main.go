@@ -39,6 +39,7 @@ func main() {
 		ObserverAddr: *observerURL,
 		HostName:     "security-test-service",
 		OpenAPI:      "./api/openapi.yaml",
+		HostRules:    "./custom_rules.yaml",
 	}
 
 	handler, err := observer.Middleware(obsConf)
