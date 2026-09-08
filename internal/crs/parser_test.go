@@ -27,7 +27,6 @@ func TestParseSecRule(t *testing.T) {
 	}
 
 	want := CRSRule{
-		ID: "942270",
 		Targets: []Target{
 			{
 				Variable: RequestCookies,
@@ -50,39 +49,54 @@ func TestParseSecRule(t *testing.T) {
 				Selector: "//@*",
 			},
 		},
+
 		Operator: Operator{
 			Type:  OperatorRegex,
 			Value: `(?i)union.*?select.*?from`,
 		},
-		Phase: 2,
-		Transforms: []Transformation{
-			TransformNone,
-			TransformURLDecodeUni,
-		},
-		Message:  "Looking for basic sql injection",
-		LogData:  "Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}",
-		Severity: SeverityCritical,
-		Tags: []string{
-			"application-multi",
-			"attack-sqli",
-			"OWASP_CRS",
-		},
-		Version: "OWASP_CRS/4.30.0-dev",
 
-		Block:   true,
-		Capture: true,
+		Actions: Actions{
+			ID:    "942270",
+			Phase: 2,
 
-		SetVars: []SetVar{
-			{
-				Collection: "tx",
-				Name:       "sql_injection_score",
-				Operation:  SetVarIncrement,
-				Value:      "%{tx.critical_anomaly_score}",
+			Transforms: []Transformation{
+				TransformNone,
+				TransformURLDecodeUni,
+			},
+
+			Message: "Looking for basic sql injection",
+			LogData: "Matched Data: %{TX.0} found within " +
+				"%{MATCHED_VAR_NAME}: %{MATCHED_VAR}",
+
+			Severity: SeverityCritical,
+
+			Tags: []string{
+				"application-multi",
+				"attack-sqli",
+				"OWASP_CRS",
+			},
+
+			Version: "OWASP_CRS/4.30.0-dev",
+
+			Block:   true,
+			Capture: true,
+
+			SetVars: []SetVar{
+				{
+					Collection: "tx",
+					Name:       "sql_injection_score",
+					Operation:  SetVarIncrement,
+					Value:      "%{tx.critical_anomaly_score}",
+				},
 			},
 		},
 	}
 
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ParseSecRule() mismatch\n\ngot:\n%+v\n\nwant:\n%+v", got, want)
+		t.Errorf(
+			"ParseSecRule() mismatch\n\ngot:\n%+v\n\nwant:\n%+v",
+			got,
+			want,
+		)
 	}
 }

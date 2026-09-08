@@ -1,6 +1,12 @@
 // Package crs supports the OWASP Core Rule Set (CRS).
 package crs
 
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
 type CRSRule struct {
 	Targets  []Target
 	Operator Operator
@@ -102,6 +108,91 @@ type Actions struct {
 	ChainedRule *CRSRule
 }
 
+var standaloneActions = map[string]func(*Actions){
+	"block": func(a *Actions) {
+		a.Block = true
+	},
+	"pass": func(a *Actions) {
+		a.Pass = true
+	},
+	"nolog": func(a *Actions) {
+		a.NoLog = true
+	},
+	"capture": func(a *Actions) {
+		a.Capture = true
+	},
+	"multiMatch": func(a *Actions) {
+		a.MultiMatch = true
+	},
+}
+
+var valueActions = map[string]func(*Actions, string) error{
+	"id": func(a *Actions, value string) error {
+		a.ID = value
+		return nil
+	},
+
+	"phase": func(a *Actions, value string) error {
+		phase, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid phase %q: %w", value, err)
+		}
+
+		a.Phase = phase
+		return nil
+	},
+
+	"msg": func(a *Actions, value string) error {
+		a.Message = strings.Trim(value, "'")
+		return nil
+	},
+
+	"logdata": func(a *Actions, value string) error {
+		a.LogData = strings.Trim(value, "'")
+		return nil
+	},
+
+	"severity": func(a *Actions, value string) error {
+		value = strings.Trim(value, "'")
+
+		severity := Severity(value)
+		a.Severity = severity
+		return nil
+	},
+
+	"tag": func(a *Actions, value string) error {
+		a.Tags = append(a.Tags, strings.Trim(value, "'"))
+		return nil
+	},
+
+	"ver": func(a *Actions, value string) error {
+		a.Version = strings.Trim(value, "'")
+		return nil
+	},
+
+	// Transforms
+	"t": func(a *Actions, s string) error {
+		if !Transformation(s).IsValidTransformation() {
+			return fmt.Errorf("unsupported transform: %s", s)
+		}
+
+		a.Transforms = append(a.Transforms, Transformation(s))
+		return nil
+	},
+
+	// Set Variable
+	"setvar": func(a *Actions, s string) error {
+		setVar, err := parseSetVar(s)
+		if err != nil {
+			return err
+		}
+
+		a.SetVars = append(a.SetVars, setVar)
+
+		return nil
+	},
+}
+
 type Transformation string
 
 const (
@@ -115,6 +206,15 @@ const (
 	TransformRemoveCommentsChar Transformation = "removeCommentsChar"
 	TransformRemoveWhitespace   Transformation = "removeWhitespace"
 )
+
+func (t Transformation) IsValidTransformation() bool {
+	switch t {
+	case TransformNone, TransformUTF8ToUnicode, TransformURLDecodeUni, TransformRemoveNulls, TransformReplaceNulls, TransformReplaceComments, TransformRemoveComments, TransformRemoveCommentsChar, TransformRemoveWhitespace:
+		return true
+	default:
+		return false
+	}
+}
 
 type Severity string
 
@@ -138,4 +238,38 @@ type SetVar struct {
 	Name       string
 	Operation  SetVarOperation
 	Value      string
+}
+
+func parseSetVar(raw string) (SetVar, error) {
+	raw = strings.TrimSpace(raw)
+	raw = strings.Trim(raw, "'")
+
+	collectionAndRest, value, found := strings.Cut(raw, "=")
+	if !found {
+		return SetVar{}, fmt.Errorf("invalid setvar %q: missing '='", raw)
+	}
+
+	collection, name, found := strings.Cut(collectionAndRest, ".")
+	if !found {
+		return SetVar{}, fmt.Errorf("invalid setvar %q: missing collection", raw)
+	}
+
+	operation := SetVarAssign
+
+	switch {
+	case strings.HasPrefix(value, "+"):
+		operation = SetVarIncrement
+		value = strings.TrimPrefix(value, "+")
+
+	case strings.HasPrefix(value, "-"):
+		operation = SetVarDecrement
+		value = strings.TrimPrefix(value, "-")
+	}
+
+	return SetVar{
+		Collection: collection,
+		Name:       name,
+		Operation:  operation,
+		Value:      value,
+	}, nil
 }

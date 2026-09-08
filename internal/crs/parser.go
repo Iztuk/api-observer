@@ -6,24 +6,29 @@ import (
 )
 
 func ParseSecRule(rule string) (CRSRule, error) {
-	parts := make([]string, 4)
-	var sb strings.Builder
+	parts, err := splitSecRule(rule)
+	if err != nil {
+		return CRSRule{}, err
+	}
 
-	p := 0
-	for i := 0; p < 4; i++ {
-		if rule[i] == ' ' {
-			parts[p] = sb.String()
-			p++
-			sb.Reset()
-			continue
-		}
+	for _, part := range parts {
+		fmt.Println("\n", part)
+	}
 
-		sb.WriteRune(rune(rule[i]))
+	if len(parts) != 4 {
+		return CRSRule{}, fmt.Errorf(
+			"expected 4 SecRule components, got %d",
+			len(parts),
+		)
 	}
 
 	var cr CRSRule
+
 	if !parseDirective(parts[0]) {
-		return CRSRule{}, fmt.Errorf("configuration directive '%s' not supported", parts[0])
+		return CRSRule{}, fmt.Errorf(
+			"configuration directive '%s' not supported",
+			parts[0],
+		)
 	}
 
 	t, err := parseTargets(parts[1])
@@ -38,7 +43,64 @@ func ParseSecRule(rule string) (CRSRule, error) {
 	}
 	cr.Operator = o
 
+	a, err := parseActions(parts[3])
+	if err != nil {
+		return CRSRule{}, err
+	}
+	cr.Actions = a
+
 	return cr, nil
+}
+
+func splitSecRule(rule string) ([]string, error) {
+	parts := make([]string, 0, 4)
+
+	var sb strings.Builder
+
+	inQuotes := false
+
+	for i := 0; i < len(rule); i++ {
+		ch := rule[i]
+
+		switch {
+		case ch == '\\':
+			continue
+		case ch == '"':
+			inQuotes = !inQuotes
+			sb.WriteByte(ch)
+
+		case isWhitespace(ch) && !inQuotes:
+			if sb.Len() == 0 {
+				// Ignore additional whitespace between tokens.
+				continue
+			}
+
+			parts = append(parts, sb.String())
+			sb.Reset()
+
+		default:
+			sb.WriteByte(ch)
+		}
+	}
+
+	if inQuotes {
+		return nil, fmt.Errorf("unterminated quote in SecRule")
+	}
+
+	if sb.Len() > 0 {
+		parts = append(parts, sb.String())
+	}
+
+	return parts, nil
+}
+
+func isWhitespace(ch byte) bool {
+	switch ch {
+	case ' ', '\t', '\n', '\r':
+		return true
+	default:
+		return false
+	}
 }
 
 func parseDirective(directive string) bool {
@@ -102,4 +164,49 @@ func parseOperator(raw string) (Operator, error) {
 	}, nil
 }
 
-func parseActions(raw string)
+func parseActions(raw string) (Actions, error) {
+	var actions Actions
+
+	raw = strings.Trim(raw, `"`)
+
+	// parts := strings.Split(raw, ",")
+
+	for part := range strings.SplitSeq(raw, ",") {
+		part = strings.TrimSpace(part)
+
+		// Standalone:
+		// block
+		// capture
+		// pass
+		if setter, ok := standaloneActions[part]; ok {
+			setter(&actions)
+			continue
+		}
+
+		// Value-based:
+		// id:942100
+		// phase:2
+		// msg:'something'
+		name, value, found := strings.Cut(part, ":")
+		if !found {
+			return Actions{}, fmt.Errorf(
+				"unsupported action %q",
+				part,
+			)
+		}
+
+		setter, ok := valueActions[name]
+		if !ok {
+			return Actions{}, fmt.Errorf(
+				"unsupported action %q",
+				name,
+			)
+		}
+
+		if err := setter(&actions, value); err != nil {
+			return Actions{}, err
+		}
+	}
+
+	return actions, nil
+}
