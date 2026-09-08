@@ -9,17 +9,20 @@ import (
 )
 
 type HostRulesDoc struct {
-	Rules map[string]HostRule `json:"rules" yaml:"rules"`
+	Rules map[string]*HostRule `json:"rules" yaml:"rules"`
 }
 
 type HostRule struct {
-	Enabled     bool      `json:"enabled" yaml:"enabled"`
+	Enabled     *bool     `json:"enabled" yaml:"enabled"`
 	AppliesTo   []JobType `json:"applies_to" yaml:"applies_to"`
 	Type        RuleType  `json:"type" yaml:"type"`
 	Description string    `json:"description,omitempty" yaml:"description,omitempty"`
 
 	Match   RuleMatch   `json:"match" yaml:"match"`
 	Finding RuleFinding `json:"finding" yaml:"finding"`
+
+	Chain       string    `json:"chain,omitempty" yaml:"chain,omitempty"` // HostRule name will be the reference to the chained HostRule
+	ChainedRule *HostRule `json:"-" yaml:"-"`
 }
 
 type RuleType string
@@ -40,11 +43,24 @@ type RuleMatch struct {
 	Patterns    []RulePattern       `json:"patterns,omitempty" yaml:"patterns,omitempty"`
 }
 
+type MatchOperator string
+
+const (
+	MatchOperatorRegex       MatchOperator = "regex"
+	MatchOperatorStringEqual MatchOperator = "string_equal"
+	MatchOperatorLessThan    MatchOperator = "less_than"
+	MatchOperatorDetectSQLi  MatchOperator = "detect_sqli"
+)
+
 type RulePattern struct {
-	Target  TargetType     `json:"target" yaml:"target"`                 // query, header, path, field
-	Name    string         `json:"name,omitempty" yaml:"name,omitempty"` // param/header/field name
-	Pattern string         `json:"pattern" yaml:"pattern"`               // regex
-	Regex   *regexp.Regexp `json:"-" yaml:"-"`
+	Target TargetType `json:"target" yaml:"target"`
+	Name   string     `json:"name,omitempty" yaml:"name,omitempty"`
+
+	Operator MatchOperator `json:"operator" yaml:"operator"`
+	Value    string        `json:"value,omitempty" yaml:"value,omitempty"`
+	Negated  bool          `json:"negated,omitempty" yaml:"negated,omitempty"`
+
+	Regex *regexp.Regexp `json:"-" yaml:"-"`
 }
 
 type TargetType string
@@ -57,8 +73,10 @@ const (
 )
 
 type RuleFinding struct {
-	Title   string `json:"title" yaml:"title"`
-	Message string `json:"message" yaml:"message"`
+	Title    string   `json:"title" yaml:"title"`
+	Message  string   `json:"message" yaml:"message"`
+	Severity string   `json:"severity,omitempty" yaml:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty" yaml:"tags,omitempty"`
 }
 
 func (doc *HostRulesDoc) CompilePatterns() error {
@@ -66,20 +84,22 @@ func (doc *HostRulesDoc) CompilePatterns() error {
 		for i := range rule.Match.Patterns {
 			pattern := &rule.Match.Patterns[i]
 
-			re, err := regexp.Compile(pattern.Pattern)
+			if pattern.Operator != MatchOperatorRegex {
+				continue
+			}
+
+			re, err := regexp.Compile(pattern.Value)
 			if err != nil {
 				return fmt.Errorf(
 					"host rule %q has invalid regex pattern %q: %w",
 					ruleID,
-					pattern.Pattern,
+					pattern.Value,
 					err,
 				)
 			}
 
 			pattern.Regex = re
 		}
-
-		doc.Rules[ruleID] = rule
 	}
 
 	return nil
@@ -97,7 +117,22 @@ func ParseHostRules(content string) (*HostRulesDoc, error) {
 	}
 
 	if doc.Rules == nil {
-		doc.Rules = make(map[string]HostRule)
+		doc.Rules = make(map[string]*HostRule)
+	} else {
+		if err := doc.chainRules(); err != nil {
+			return nil, err
+		}
+
+		if err := doc.validateChains(); err != nil {
+			return nil, err
+		}
+
+		for _, rule := range doc.Rules {
+			if rule.Enabled == nil {
+				v := true
+				rule.Enabled = &v
+			}
+		}
 	}
 
 	if err := doc.CompilePatterns(); err != nil {
@@ -105,4 +140,44 @@ func ParseHostRules(content string) (*HostRulesDoc, error) {
 	}
 
 	return &doc, nil
+}
+
+func (doc *HostRulesDoc) chainRules() error {
+	for id, rule := range doc.Rules {
+		if rule.Chain == "" {
+			continue
+		}
+
+		chainedRule, ok := doc.Rules[rule.Chain]
+		if !ok {
+			return fmt.Errorf("failed to chain rule '%s' to rule '%s'", id, rule.Chain)
+		}
+
+		rule.ChainedRule = chainedRule
+
+	}
+
+	return nil
+}
+
+func (doc *HostRulesDoc) validateChains() error {
+	for id, rule := range doc.Rules {
+		visited := make(map[*HostRule]bool)
+
+		current := rule
+
+		for current != nil {
+			if visited[current] {
+				return fmt.Errorf(
+					"cycle detected in rule chain starting at %q",
+					id,
+				)
+			}
+
+			visited[current] = true
+			current = current.ChainedRule
+		}
+	}
+
+	return nil
 }
