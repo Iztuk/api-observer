@@ -177,6 +177,50 @@ func TestParseSecRule_SQLiCRS(t *testing.T) {
 	}
 }
 
+func TestParseRules_Chains(t *testing.T) {
+	data, err := os.ReadFile(
+		"testdata/REQUEST-942-APPLICATION-ATTACK-SQLI.conf",
+	)
+	if err != nil {
+		t.Fatalf("failed to read CRS test file: %v", err)
+	}
+
+	rawRules := extractSecRules(string(data))
+
+	rules, err := ParseRules(rawRules)
+	if err != nil {
+		t.Fatalf("ParseRules() failed: %v", err)
+	}
+
+	for _, rule := range rules {
+		if !rule.Actions.Chain {
+			continue
+		}
+
+		if rule.ChainedRule == nil {
+			t.Errorf(
+				"rule %q declares chain but has no ChainedRule",
+				rule.Actions.ID,
+			)
+			continue
+		}
+
+		if len(rule.ChainedRule.Targets) == 0 {
+			t.Errorf(
+				"chained rule for %q has no targets",
+				rule.Actions.ID,
+			)
+		}
+
+		if rule.ChainedRule.Operator.Type == "" {
+			t.Errorf(
+				"chained rule for %q has no operator",
+				rule.Actions.ID,
+			)
+		}
+	}
+}
+
 func extractSecRules(raw string) []string {
 	scanner := bufio.NewScanner(strings.NewReader(raw))
 
