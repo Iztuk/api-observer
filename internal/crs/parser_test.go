@@ -1,7 +1,12 @@
 package crs
 
 import (
+	"bufio"
+	"fmt"
+	"os"
 	"reflect"
+	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -99,4 +104,140 @@ func TestParseSecRule(t *testing.T) {
 			want,
 		)
 	}
+}
+
+func TestParseSecRule_SQLiCRS(t *testing.T) {
+	data, err := os.ReadFile(
+		"testdata/REQUEST-942-APPLICATION-ATTACK-SQLI.conf",
+	)
+	if err != nil {
+		t.Fatalf("failed to read CRS test file: %v", err)
+	}
+
+	rules := extractSecRules(string(data))
+
+	// This particular SQLi CRS file currently contains 73 SecRule
+	// directives, including child rules used by chains.
+	if got, want := len(rules), 73; got != want {
+		t.Fatalf(
+			"unexpected number of SecRule directives: got %d, want %d",
+			got,
+			want,
+		)
+	}
+
+	for i, raw := range rules {
+		expectedID := extractRuleID(raw)
+
+		name := fmt.Sprintf("rule_%03d", i+1)
+
+		if expectedID != "" {
+			name = "rule_" + expectedID
+		}
+
+		t.Run(name, func(t *testing.T) {
+			got, err := ParseSecRule(raw)
+			if err != nil {
+				t.Errorf(
+					"ParseSecRule() failed: %v\n\nraw rule:\n%s",
+					err,
+					raw,
+				)
+				return
+			}
+
+			// Every SecRule should have at least one target.
+			if len(got.Targets) == 0 {
+				t.Errorf(
+					"ParseSecRule() returned no targets\n\nraw rule:\n%s",
+					raw,
+				)
+			}
+
+			// Every SecRule should have an operator.
+			if got.Operator.Type == "" {
+				t.Errorf(
+					"ParseSecRule() returned empty operator\n\nraw rule:\n%s",
+					raw,
+				)
+			}
+
+			// Parent rules normally have an ID.
+			//
+			// Chained child rules may not because they inherit
+			// metadata from the parent rule.
+			if expectedID != "" && got.Actions.ID != expectedID {
+				t.Errorf(
+					"wrong rule ID: got %q, want %q",
+					got.Actions.ID,
+					expectedID,
+				)
+			}
+		})
+	}
+}
+
+func extractSecRules(raw string) []string {
+	scanner := bufio.NewScanner(strings.NewReader(raw))
+
+	var rules []string
+	var current strings.Builder
+
+	collecting := false
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		if !collecting {
+			if !strings.HasPrefix(line, "SecRule ") {
+				continue
+			}
+
+			collecting = true
+		}
+
+		continued := strings.HasSuffix(line, `\`)
+
+		if continued {
+			line = strings.TrimSuffix(line, `\`)
+			line = strings.TrimSpace(line)
+		}
+
+		if current.Len() > 0 {
+			current.WriteByte(' ')
+		}
+
+		current.WriteString(line)
+
+		if continued {
+			continue
+		}
+
+		rules = append(rules, current.String())
+
+		current.Reset()
+		collecting = false
+	}
+
+	if current.Len() > 0 {
+		rules = append(rules, current.String())
+	}
+
+	return rules
+}
+
+var ruleIDRegex = regexp.MustCompile(`\bid:(\d+)`)
+
+func extractRuleID(raw string) string {
+	match := ruleIDRegex.FindStringSubmatch(raw)
+
+	if len(match) != 2 {
+		return ""
+	}
+
+	return match[1]
 }

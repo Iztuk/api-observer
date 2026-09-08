@@ -5,14 +5,43 @@ import (
 	"strings"
 )
 
-func ParseSecRule(rule string) (CRSRule, error) {
-	parts, err := splitSecRule(rule)
-	if err != nil {
-		return CRSRule{}, err
+func ParseRules(rawRules []string) ([]CRSRule, error) {
+	var rules []CRSRule
+
+	for i := 0; i < len(rawRules); i++ {
+		rule, err := ParseSecRule(rawRules[i])
+		if err != nil {
+			return nil, err
+		}
+
+		if rule.Actions.Chain {
+			if i+1 >= len(rawRules) {
+				return nil, fmt.Errorf(
+					"rule %q declares a chain but has no child rule",
+					rule.Actions.ID,
+				)
+			}
+
+			child, err := ParseSecRule(rawRules[i+1])
+			if err != nil {
+				return nil, err
+			}
+
+			rule.ChainedRule = &child
+			i++
+		}
+		rules = append(rules, rule)
 	}
 
-	for _, part := range parts {
-		fmt.Println("\n", part)
+	return rules, nil
+}
+
+func ParseSecRule(rawRule string) (CRSRule, error) {
+	rawRule = removeLineContinuations(rawRule)
+
+	parts, err := splitSecRule(rawRule)
+	if err != nil {
+		return CRSRule{}, err
 	}
 
 	if len(parts) != 4 {
@@ -56,22 +85,18 @@ func splitSecRule(rule string) ([]string, error) {
 	parts := make([]string, 0, 4)
 
 	var sb strings.Builder
-
 	inQuotes := false
 
 	for i := 0; i < len(rule); i++ {
 		ch := rule[i]
 
 		switch {
-		case ch == '\\':
-			continue
-		case ch == '"':
+		case ch == '"' && !isEscaped(rule, i):
 			inQuotes = !inQuotes
 			sb.WriteByte(ch)
 
 		case isWhitespace(ch) && !inQuotes:
 			if sb.Len() == 0 {
-				// Ignore additional whitespace between tokens.
 				continue
 			}
 
@@ -92,6 +117,16 @@ func splitSecRule(rule string) ([]string, error) {
 	}
 
 	return parts, nil
+}
+
+func isEscaped(s string, index int) bool {
+	backslashes := 0
+
+	for i := index - 1; i >= 0 && s[i] == '\\'; i-- {
+		backslashes++
+	}
+
+	return backslashes%2 == 1
 }
 
 func isWhitespace(ch byte) bool {
@@ -169,24 +204,19 @@ func parseActions(raw string) (Actions, error) {
 
 	raw = strings.Trim(raw, `"`)
 
-	// parts := strings.Split(raw, ",")
+	parts, err := splitActions(raw)
+	if err != nil {
+		return Actions{}, err
+	}
 
-	for part := range strings.SplitSeq(raw, ",") {
+	for _, part := range parts {
 		part = strings.TrimSpace(part)
 
-		// Standalone:
-		// block
-		// capture
-		// pass
 		if setter, ok := standaloneActions[part]; ok {
 			setter(&actions)
 			continue
 		}
 
-		// Value-based:
-		// id:942100
-		// phase:2
-		// msg:'something'
 		name, value, found := strings.Cut(part, ":")
 		if !found {
 			return Actions{}, fmt.Errorf(
@@ -194,6 +224,9 @@ func parseActions(raw string) (Actions, error) {
 				part,
 			)
 		}
+
+		name = strings.TrimSpace(name)
+		value = strings.TrimSpace(value)
 
 		setter, ok := valueActions[name]
 		if !ok {
@@ -209,4 +242,78 @@ func parseActions(raw string) (Actions, error) {
 	}
 
 	return actions, nil
+}
+
+func splitActions(raw string) ([]string, error) {
+	var parts []string
+	var sb strings.Builder
+
+	inSingleQuotes := false
+
+	for i := 0; i < len(raw); i++ {
+		ch := raw[i]
+
+		switch {
+		case ch == '\'' && !isEscaped(raw, i):
+			inSingleQuotes = !inSingleQuotes
+			sb.WriteByte(ch)
+
+		case ch == ',' && !inSingleQuotes:
+			part := strings.TrimSpace(sb.String())
+
+			if part != "" {
+				parts = append(parts, part)
+			}
+
+			sb.Reset()
+
+		default:
+			sb.WriteByte(ch)
+		}
+	}
+
+	if inSingleQuotes {
+		return nil, fmt.Errorf(
+			"unterminated single-quoted action value",
+		)
+	}
+
+	if sb.Len() > 0 {
+		part := strings.TrimSpace(sb.String())
+
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+
+	return parts, nil
+}
+
+func removeLineContinuations(raw string) string {
+	var sb strings.Builder
+
+	for i := 0; i < len(raw); i++ {
+		if raw[i] == '\\' && i+1 < len(raw) {
+			// Unix newline: \ + \n
+			if raw[i+1] == '\n' {
+				sb.WriteByte(' ')
+				i++
+				continue
+			}
+
+			// Windows newline: \ + \r\n
+			if raw[i+1] == '\r' &&
+				i+2 < len(raw) &&
+				raw[i+2] == '\n' {
+
+				sb.WriteByte(' ')
+				i += 2
+				continue
+			}
+		}
+
+		sb.WriteByte(raw[i])
+	}
+
+	return sb.String()
 }

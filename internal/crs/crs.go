@@ -8,9 +8,10 @@ import (
 )
 
 type CRSRule struct {
-	Targets  []Target
-	Operator Operator
-	Actions  Actions
+	Targets     []Target
+	Operator    Operator
+	Actions     Actions
+	ChainedRule *CRSRule
 }
 
 type Variable string
@@ -105,7 +106,8 @@ type Actions struct {
 	SkipAfter string
 	SetVars   []SetVar
 
-	ChainedRule *CRSRule
+	// Rule chaining
+	Chain bool
 }
 
 var standaloneActions = map[string]func(*Actions){
@@ -123,6 +125,9 @@ var standaloneActions = map[string]func(*Actions){
 	},
 	"multiMatch": func(a *Actions) {
 		a.MultiMatch = true
+	},
+	"chain": func(a *Actions) {
+		a.Chain = true
 	},
 }
 
@@ -189,6 +194,10 @@ var valueActions = map[string]func(*Actions, string) error{
 
 		a.SetVars = append(a.SetVars, setVar)
 
+		return nil
+	},
+	"skipAfter": func(a *Actions, s string) error {
+		a.SkipAfter = strings.TrimSpace(s)
 		return nil
 	},
 }
