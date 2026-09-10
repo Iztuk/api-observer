@@ -12,3 +12,5 @@ func TranslateRule(rule CRSRule) (TranslationResult, error) {
 
 	return result, nil
 }
+
+func translateTarget(t Target)

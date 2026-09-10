@@ -17,7 +17,7 @@ type CRSRule struct {
 type Variable string
 
 const (
-	Args      Variable = "ARGS"
+	Args      Variable = "ARGS" // Maps to body and query
 	ArgsNames Variable = "ARGS_NAMES"
 
 	RequestBody       Variable = "REQUEST_BODY"
