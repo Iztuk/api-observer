@@ -13,17 +13,19 @@ type RuleSet struct {
 }
 
 type Rule struct {
-	Enabled     *bool       `json:"enabled" yaml:"enabled"`
-	Scope       []RuleScope `json:"scope" yaml:"scope"`
-	Description string      `json:"description,omitempty" yaml:"description,omitempty"`
+	Enabled     *bool      `json:"enabled" yaml:"enabled"`
+	Scope       RuleScopes `json:"scope" yaml:"scope"`
+	Description string     `json:"description,omitempty" yaml:"description,omitempty"`
 
-	Selector RuleSelector `json:"selector" yaml:"selector"`
+	Selector RuleSelector `json:"selector,omitempty" yaml:"selector,omitempty"`
 	Match    RuleMatch    `json:"match" yaml:"match"`
 	Finding  RuleFinding  `json:"finding" yaml:"finding"`
 
 	Chain       string `json:"chain,omitempty" yaml:"chain,omitempty"` // HostRule name will be the reference to the chained HostRule
 	ChainedRule *Rule  `json:"-" yaml:"-"`
 }
+
+type RuleScopes []RuleScope
 
 type RuleScope string
 
@@ -37,8 +39,8 @@ type RuleSelector struct {
 }
 
 type RuleMatch struct {
-	Mode       MatchMode        `json:"mode,omitempty" yaml:"mode,omitempty"`
-	Conditions []MatchCondition `json:"conditions,omitempty" yaml:"conditions,omitempty"`
+	Mode       MatchMode       `json:"mode,omitempty" yaml:"mode,omitempty"`
+	Conditions MatchConditions `json:"conditions,omitempty" yaml:"conditions,omitempty"`
 }
 
 type MatchMode string
@@ -47,6 +49,8 @@ const (
 	MatchModeAll MatchMode = "all"
 	MatchModeAny MatchMode = "any"
 )
+
+type MatchConditions []MatchCondition
 
 type MatchCondition struct {
 	Target RuleTarget `json:"target" yaml:"target"`
@@ -88,6 +92,108 @@ type RuleFinding struct {
 	Tags     []string `json:"tags,omitempty" yaml:"tags,omitempty"`
 }
 
+type RuleValidation interface {
+	Validate() error
+	DefaultConfiguration()
+}
+
+func (s RuleScopes) Validate() error {
+	for _, scope := range s {
+		switch scope {
+		case RuleScopeRequest, RuleScopeResponse:
+			continue
+		default:
+			return fmt.Errorf("invalid rule scope %q", scope)
+		}
+	}
+
+	return nil
+}
+
+func (s *RuleScopes) DefaultConfiguration() {
+	if len(*s) != 0 {
+		return
+	}
+
+	*s = RuleScopes{
+		RuleScopeRequest,
+		RuleScopeResponse,
+	}
+}
+
+func (m *RuleMatch) Validate() error {
+	if m.Mode == "" {
+		m.Mode.DefaultConfiguration()
+	} else {
+		switch m.Mode {
+		case MatchModeAll, MatchModeAny:
+		default:
+			return fmt.Errorf("invalid match mode %q", m.Mode)
+		}
+	}
+
+	if len(m.Conditions) == 0 {
+		return fmt.Errorf("rule matching requires at least 1 condition")
+	}
+
+	if err := m.Conditions.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *RuleMatch) DefaultConfiguration() {}
+
+func (m MatchMode) Validate() error {
+	return nil
+}
+
+func (m *MatchMode) DefaultConfiguration() {
+	if *m != "" {
+		return
+	}
+
+	*m = MatchModeAll
+}
+
+func (c MatchConditions) Validate() error {
+	for _, cond := range c {
+		if err := cond.Target.Validate(); err != nil {
+			return err
+		}
+
+		if err := cond.Operator.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *MatchConditions) DefaultConfiguration() {}
+
+func (t RuleTarget) Validate() error {
+	switch t {
+	case RuleTargetPath, RuleTargetQuery, RuleTargetHeader, RuleTargetBody, RuleTargetBodyLength, RuleTargetMethod, RuleTargetCookie, RuleTargetCookieName:
+		return nil
+	default:
+		return fmt.Errorf("invalid rule target %q", t)
+	}
+}
+
+func (t *RuleTarget) DefaultConfiguration() {}
+
+func (o MatchOperator) Validate() error {
+	switch o {
+	case MatchOperatorRegex, MatchOperatorStringEqual, MatchOperatorLessThan, MatchOperatorDetectSQLi:
+		return nil
+	default:
+		return fmt.Errorf("invalid match operator %q", o)
+	}
+}
+
+func (o *MatchOperator) DefaultConfiguration() {}
+
 func ParseRuleSet(content string) (*RuleSet, error) {
 	if strings.TrimSpace(content) == "" {
 		return NewRuleSet(), nil
@@ -102,6 +208,40 @@ func ParseRuleSet(content string) (*RuleSet, error) {
 	if ruleset.Rules == nil {
 		return NewRuleSet(), nil
 	}
+
+	for _, rule := range ruleset.Rules {
+		if rule.Enabled == nil {
+			v := true
+			rule.Enabled = &v
+		}
+
+		if len(rule.Scope) == 0 {
+			rule.Scope.DefaultConfiguration()
+		} else {
+			err := rule.Scope.Validate()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if err := rule.Match.Validate(); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := ruleset.chainRules(); err != nil {
+		return nil, err
+	}
+
+	if err := ruleset.validateChains(); err != nil {
+		return nil, err
+	}
+
+	if err := ruleset.CompilePatterns(); err != nil {
+		return nil, err
+	}
+
+	return &ruleset, nil
 }
 
 func NewRuleSet() *RuleSet {
@@ -110,8 +250,8 @@ func NewRuleSet() *RuleSet {
 	}
 }
 
-func (doc *RuleSet) CompilePatterns() error {
-	for ruleID, rule := range doc.Rules {
+func (rs *RuleSet) CompilePatterns() error {
+	for ruleID, rule := range rs.Rules {
 		for i := range rule.Match.Conditions {
 			pattern := &rule.Match.Conditions[i]
 
@@ -136,50 +276,13 @@ func (doc *RuleSet) CompilePatterns() error {
 	return nil
 }
 
-func ParseRuleSet(content string) (*RuleSet, error) {
-	if strings.TrimSpace(content) == "" {
-		return nil, nil
-	}
-
-	var doc HostRulesDoc
-
-	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
-		return nil, fmt.Errorf("failed to parse host rules: %w", err)
-	}
-
-	if doc.Rules == nil {
-		doc.Rules = make(map[string]*HostRule)
-	} else {
-		if err := doc.chainRules(); err != nil {
-			return nil, err
-		}
-
-		if err := doc.validateChains(); err != nil {
-			return nil, err
-		}
-
-		for _, rule := range doc.Rules {
-			if rule.Enabled == nil {
-				v := true
-				rule.Enabled = &v
-			}
-		}
-	}
-
-	if err := doc.CompilePatterns(); err != nil {
-		return nil, err
-	}
-
-	return &doc, nil
-}
-
-func (doc *HostRulesDoc) chainRules() error {
-	for id, rule := range doc.Rules {
+func (rs *RuleSet) chainRules() error {
+	for id, rule := range rs.Rules {
 		if rule.Chain == "" {
 			continue
 		}
 
-		chainedRule, ok := doc.Rules[rule.Chain]
+		chainedRule, ok := rs.Rules[rule.Chain]
 		if !ok {
 			return fmt.Errorf("failed to chain rule '%s' to rule '%s'", id, rule.Chain)
 		}
@@ -191,9 +294,9 @@ func (doc *HostRulesDoc) chainRules() error {
 	return nil
 }
 
-func (doc *HostRulesDoc) validateChains() error {
-	for id, rule := range doc.Rules {
-		visited := make(map[*HostRule]bool)
+func (rs *RuleSet) validateChains() error {
+	for id, rule := range rs.Rules {
+		visited := make(map[*Rule]bool)
 
 		current := rule
 
