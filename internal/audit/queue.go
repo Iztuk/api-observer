@@ -1,25 +1,15 @@
 package audit
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"runtime/debug"
-	"strings"
 	"sync"
-	"time"
-
-	"github.com/google/uuid"
 )
 
 type Job interface {
-	JobType() JobType
-	Metadata() Metadata
-	Process(c context.Context, id string, e *RuleEngine, s *JSONLogStore) error
+	Process() error
 }
 
 type Queue struct {
@@ -29,176 +19,7 @@ type Queue struct {
 	once sync.Once
 }
 
-type HTTPExchangeEvent struct {
-	HostName string        `json:"host"`
-	Request  *RequestCopy  `json:"request,omitempty"`
-	Response *ResponseCopy `json:"response,omitempty"`
-	Failure  *FailureCopy  `json:"failure,omitempty"`
-}
-
-type RequestCopy struct {
-	Method string      `json:"method"`
-	URL    string      `json:"url"`
-	Header http.Header `json:"header"`
-	Body   []byte      `json:"body"`
-}
-
-type ResponseCopy struct {
-	Request    *RequestCopy `json:"request"`
-	StatusCode int          `json:"status_code"`
-	Headers    http.Header  `json:"headers"`
-	Body       []byte       `json:"body"`
-}
-
-type FailureCopy struct {
-	Request *RequestCopy `json:"request"`
-	Error   string       `json:"error"`
-}
-
-func (q *Queue) ProcessHTTPEvent(ctx context.Context, event HTTPExchangeEvent, engine RuleEngine) error {
-	if strings.TrimSpace(event.HostName) == "" {
-		return fmt.Errorf("http exchange event missing host")
-	}
-
-	eventCount := 0
-
-	if event.Request != nil {
-		eventCount++
-	}
-
-	if event.Response != nil {
-		eventCount++
-	}
-
-	if event.Failure != nil {
-		eventCount++
-	}
-
-	if eventCount == 0 {
-		return fmt.Errorf("http exchange event has no request, response, or failure payload")
-	}
-
-	if eventCount > 1 {
-		return fmt.Errorf("http exchange event must contain only one payload type")
-	}
-
-	switch {
-	case event.Request != nil:
-		return q.processRequestEvent(event.HostName, event.Request)
-
-	case event.Response != nil:
-		return q.processResponseEvent(event.HostName, event.Response)
-
-	case event.Failure != nil:
-		return q.processFailureEvent(event.HostName, event.Failure)
-
-	default:
-		return fmt.Errorf("unsupported http exchange event")
-	}
-}
-
-func (q *Queue) processRequestEvent(host string, reqCopy *RequestCopy) error {
-	if reqCopy == nil {
-		return fmt.Errorf("request event missing request")
-	}
-
-	req, err := http.NewRequest(
-		reqCopy.Method,
-		reqCopy.URL,
-		bytes.NewReader(reqCopy.Body),
-	)
-	if err != nil {
-		return err
-	}
-
-	req.Header = reqCopy.Header.Clone()
-	req.ContentLength = int64(len(reqCopy.Body))
-
-	job := NewRequestJob(req, host, time.Now().UTC())
-
-	job.Body = reqCopy.Body
-
-	if ok := q.TryEnqueue(job); !ok {
-		return fmt.Errorf("failed to enqueue job: Request ID: %s", job.Meta.RequestID)
-	}
-
-	return nil
-}
-
-func (q *Queue) processResponseEvent(host string, resCopy *ResponseCopy) error {
-	if resCopy == nil {
-		return fmt.Errorf("response event missing response")
-	}
-
-	req, err := http.NewRequest(
-		resCopy.Request.Method,
-		resCopy.Request.URL,
-		bytes.NewReader(resCopy.Request.Body),
-	)
-	if err != nil {
-		return err
-	}
-
-	req.Header = resCopy.Request.Header.Clone()
-	req.ContentLength = int64(len(resCopy.Request.Body))
-
-	resp := &http.Response{
-		Request:       req,
-		StatusCode:    resCopy.StatusCode,
-		Status:        fmt.Sprintf("%d %s", resCopy.StatusCode, http.StatusText(resCopy.StatusCode)),
-		Header:        resCopy.Headers.Clone(),
-		Body:          io.NopCloser(bytes.NewReader(resCopy.Body)),
-		ContentLength: int64(len(resCopy.Body)),
-	}
-
-	job := NewResponseJob(resp, host)
-
-	job.Body = resCopy.Body
-
-	if ok := q.TryEnqueue(job); !ok {
-		return fmt.Errorf("failed to enqueue job: Request ID: %s", job.Meta.RequestID)
-	}
-
-	return nil
-}
-
-func (q *Queue) processFailureEvent(host string, failCopy *FailureCopy) error {
-	if failCopy == nil {
-		return fmt.Errorf("failure event missing request")
-	}
-
-	req, err := http.NewRequest(
-		failCopy.Request.Method,
-		failCopy.Request.URL,
-		bytes.NewReader(failCopy.Request.Body),
-	)
-	if err != nil {
-		return err
-	}
-
-	req.Header = failCopy.Request.Header.Clone()
-	req.ContentLength = int64(len(failCopy.Request.Body))
-
-	jobErr := errors.New(failCopy.Error)
-
-	job := NewFailureJob(req, host, jobErr)
-
-	if ok := q.TryEnqueue(job); !ok {
-		return fmt.Errorf("failed to enqueue job: Request ID: %s", job.Meta.RequestID)
-	}
-
-	return nil
-}
-
-func (r *RequestJob) JobType() JobType {
-	return RequestJobType
-}
-
-func (r *RequestJob) Metadata() Metadata {
-	return r.Meta
-}
-
-func (r *RequestJob) Process(ctx context.Context, jobID string, engine *RuleEngine, store *JSONLogStore) error {
+func (r *RequestJob) Process() error {
 	findings, err := engine.Evaluate(r, jobID)
 	if err != nil {
 		return err
@@ -211,36 +32,7 @@ func (r *RequestJob) Process(ctx context.Context, jobID string, engine *RuleEngi
 	return store.SaveAuditResult(findings)
 }
 
-func (r *ResponseJob) JobType() JobType {
-	return ResponseJobType
-}
-
-func (r *ResponseJob) Metadata() Metadata {
-	return r.Meta
-}
-
-func (r *ResponseJob) Process(ctx context.Context, jobID string, engine *RuleEngine, store *JSONLogStore) error {
-	findings, err := engine.Evaluate(r, jobID)
-	if err != nil {
-		return err
-	}
-
-	if len(findings) == 0 {
-		return nil
-	}
-
-	return store.SaveAuditResult(findings)
-}
-
-func (r *FailureJob) JobType() JobType {
-	return FailureJobType
-}
-
-func (r *FailureJob) Metadata() Metadata {
-	return r.Meta
-}
-
-func (r *FailureJob) Process(ctx context.Context, jobID string, engine *RuleEngine, store *JSONLogStore) error {
+func (r *ResponseJob) Process() error {
 	findings, err := engine.Evaluate(r, jobID)
 	if err != nil {
 		return err
@@ -279,7 +71,7 @@ func (q *Queue) TryEnqueue(job Job) bool {
 	}
 }
 
-func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger, engine *RuleEngine, store *JSONLogStore) *sync.WaitGroup {
+func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger) *sync.WaitGroup {
 	var wg sync.WaitGroup
 
 	for i := 0; i < count; i++ {
@@ -300,12 +92,8 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger,
 							)
 						}
 					}()
-					jobID := uuid.NewString()
-					if err := store.SaveJob(job, jobID); err != nil {
-						logger.Printf("audit worker %d failed to save job: %v", workerID, err)
-					}
 
-					if err := ProcessJob(ctx, job, jobID, engine, store); err != nil {
+					if err := ProcessJob(ctx, job); err != nil {
 						logger.Printf("audit worker %d failed to process job: %v", workerID, err)
 					}
 				}()
@@ -318,12 +106,12 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger,
 	return &wg
 }
 
-func ProcessJob(ctx context.Context, job Job, jobID string, engine *RuleEngine, store *JSONLogStore) error {
+func ProcessJob(ctx context.Context, job Job) error {
 	if job == nil {
 		return fmt.Errorf("nil audit job")
 	}
 
-	return job.Process(ctx, jobID, engine, store)
+	return job.Process()
 }
 
 func (q *Queue) Close() {

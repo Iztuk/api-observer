@@ -2,135 +2,110 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"io"
 	"log"
-	"net/http"
 	"observer/internal/audit"
-	"observer/internal/dashboard"
-	"observer/internal/ingest"
+	"observer/internal/config"
 	"os"
 	"os/signal"
-	"strconv"
+	"path/filepath"
 	"syscall"
-	"time"
 )
 
 func main() {
-	logger := log.New(os.Stdout, "api-observer: ", log.LstdFlags|log.Lmicroseconds|log.LUTC)
+	cfg := config.LoadConfigurationFile()
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	appLogger, appLogFile, err := newLogger(
+		cfg.AppLog,
+		true,
+	)
+	if err != nil {
+		log.Fatalf(
+			"failed to configure application logger: %v",
+			err,
+		)
+	}
+	defer appLogFile.Close()
+
+	findingsLogger, findingsLogFile, err := newLogger(
+		cfg.FindingsLog,
+		false,
+	)
+	if err != nil {
+		appLogger.Fatalf(
+			"failed to configure findings logger: %v",
+			err,
+		)
+	}
+	defer findingsLogFile.Close()
+
+	log.SetOutput(appLogger.Writer())
+
+	appLogger.Println("API Observer starting")
+
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
 	defer stop()
 
-	mux := http.NewServeMux()
+	queue := audit.NewQueue(cfg.QueueSize)
 
-	registry := audit.NewContractRegistry()
-
-	engine := audit.NewRuleEngine(registry)
-
-	queue := audit.NewQueue(observerQueueSize())
-	store, err := audit.NewJSONLogStore()
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	defer store.Close()
-
-	wg := queue.StartWorkers(ctx, observerWorkerCount(), logger, engine, store)
-
-	ingestHandler := ingest.NewHandler(registry, queue, engine)
-
-	ingestHandler.RegisterRoutes(mux)
+	wg := queue.StartWorkers(
+		ctx,
+		cfg.WorkerCount,
+		findingsLogger,
+	)
 
 	defer func() {
 		queue.Close()
 		wg.Wait()
+
+		appLogger.Println("workers stopped")
 	}()
 
-	server := &http.Server{
-		Addr:         observerAddress(),
-		Handler:      mux,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  30 * time.Second,
+	<-ctx.Done()
+
+	appLogger.Println("shutdown signal received")
+	appLogger.Println("API Observer stopped")
+}
+
+func newLogger(
+	logPath string,
+	writeStdout bool,
+) (*log.Logger, *os.File, error) {
+	dir := filepath.Dir(logPath)
+
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, nil, err
+		}
 	}
 
-	fileServer := http.FileServer(
-		http.Dir("./internal/dashboard/views/assets"),
+	file, err := os.OpenFile(
+		logPath,
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+		0o644,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var writer io.Writer = file
+
+	if writeStdout {
+		writer = io.MultiWriter(
+			file,
+			os.Stdout,
+		)
+	}
+
+	logger := log.New(
+		writer,
+		"",
+		log.Ldate|log.Ltime,
 	)
 
-	mux.Handle(
-		"GET /static/",
-		http.StripPrefix("/static/", fileServer),
-	)
-
-	// Dashboard
-	dashboardHandler := dashboard.NewHandler(registry)
-	dashboardHandler.RegisterRoutes(mux)
-
-	fmt.Printf("Server is running on http://localhost%s\n", observerAddress())
-
-	serverErr := make(chan error, 1)
-
-	go func() {
-		err := server.ListenAndServe()
-		if err != nil && err != http.ErrServerClosed {
-			serverErr <- err
-			return
-		}
-
-		serverErr <- nil
-	}()
-
-	select {
-	case <-ctx.Done():
-		logger.Println("shutdown signal received")
-
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			logger.Printf("server shutdown failed: %v", err)
-		}
-
-		logger.Println("server stopped")
-
-	case err := <-serverErr:
-		if err != nil {
-			log.Fatalf("Server failed to start: %v", err)
-		}
-	}
-}
-
-func observerAddress() string {
-	if addr := os.Getenv("API_OBSERVER_ADDR"); addr != "" {
-		return addr
-	}
-
-	return ":24899"
-}
-
-func observerQueueSize() int {
-	if size := os.Getenv("API_OBSERVER_QUEUE_SIZE"); size != "" {
-		num, err := strconv.Atoi(size)
-		if err != nil {
-			return 1000
-		}
-
-		return num
-	}
-
-	return 1000
-}
-
-func observerWorkerCount() int {
-	if size := os.Getenv("API_OBSERVER_WORKER_COUNT"); size != "" {
-		num, err := strconv.Atoi(size)
-		if err != nil {
-			return 5
-		}
-
-		return num
-	}
-
-	return 5
-
+	return logger, file, nil
 }

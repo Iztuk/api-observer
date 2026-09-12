@@ -12,14 +12,6 @@ import (
 	"time"
 )
 
-type JobType string
-
-const (
-	RequestJobType  JobType = "request"
-	ResponseJobType JobType = "response"
-	FailureJobType  JobType = "failure"
-)
-
 type Metadata struct {
 	RequestID string
 	Host      string
@@ -31,23 +23,15 @@ type Metadata struct {
 }
 
 type RequestJob struct {
-	Type    JobType
 	Meta    Metadata
 	Headers http.Header
 	Body    []byte
 }
 
 type ResponseJob struct {
-	Type    JobType
 	Meta    Metadata
 	Headers http.Header
 	Body    []byte
-}
-
-type FailureJob struct {
-	Type  JobType
-	Meta  Metadata
-	Error string
 }
 
 type CapturingBody struct {
