@@ -19,31 +19,31 @@ type Queue struct {
 	once sync.Once
 }
 
-func (r *RequestJob) Process() error {
-	findings, err := engine.Evaluate(r, jobID)
-	if err != nil {
-		return err
-	}
-
-	if len(findings) == 0 {
-		return nil
-	}
-
-	return store.SaveAuditResult(findings)
-}
-
-func (r *ResponseJob) Process() error {
-	findings, err := engine.Evaluate(r, jobID)
-	if err != nil {
-		return err
-	}
-
-	if len(findings) == 0 {
-		return nil
-	}
-
-	return store.SaveAuditResult(findings)
-}
+// func (r *RequestJob) Process() error {
+// 	findings, err := engine.Evaluate(r, jobID)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	if len(findings) == 0 {
+// 		return nil
+// 	}
+//
+// 	return store.SaveAuditResult(findings)
+// }
+//
+// func (r *ResponseJob) Process(l log.Logger, engine RuleEngine) {
+// 	findings, err := engine.Evaluate(r)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	if len(findings) == 0 {
+// 		return nil
+// 	}
+//
+// 	l.Println(findings)
+// }
 
 func NewQueue(size int) *Queue {
 	return &Queue{
@@ -74,7 +74,7 @@ func (q *Queue) TryEnqueue(job Job) bool {
 func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger) *sync.WaitGroup {
 	var wg sync.WaitGroup
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		wg.Add(1)
 
 		go func(workerID int) {

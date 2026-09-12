@@ -66,14 +66,14 @@ func LoadConfigurationFile() Config {
 	case errors.Is(err, os.ErrNotExist):
 		cfg = DefaultConfig()
 
-		if err := cfg.Validate(); err != nil {
+		if err = cfg.Validate(); err != nil {
 			log.Fatalf(
 				"Invalid default configuration: %v",
 				err,
 			)
 		}
 
-		if err := writeDefaultConfiguration(
+		if err = writeDefaultConfiguration(
 			appConfigDir,
 			cfgFilePath,
 			cfg,
