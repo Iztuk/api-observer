@@ -2,14 +2,13 @@ package audit
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"runtime/debug"
 	"sync"
 )
 
 type Job interface {
-	Process() error
+	Process()
 }
 
 type Queue struct {
@@ -19,31 +18,13 @@ type Queue struct {
 	once sync.Once
 }
 
-// func (r *RequestJob) Process() error {
-// 	findings, err := engine.Evaluate(r, jobID)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	if len(findings) == 0 {
-// 		return nil
-// 	}
-//
-// 	return store.SaveAuditResult(findings)
-// }
-//
-// func (r *ResponseJob) Process(l log.Logger, engine RuleEngine) {
-// 	findings, err := engine.Evaluate(r)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	if len(findings) == 0 {
-// 		return nil
-// 	}
-//
-// 	l.Println(findings)
-// }
+func (j RequestJob) Process() {
+	log.Printf("Processed: %v\n", j)
+}
+
+func (j ResponseJob) Process() {
+	log.Printf("Processed: %v\n", j)
+}
 
 func NewQueue(size int) *Queue {
 	return &Queue{
@@ -93,9 +74,7 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger)
 						}
 					}()
 
-					if err := ProcessJob(ctx, job); err != nil {
-						logger.Printf("audit worker %d failed to process job: %v", workerID, err)
-					}
+					job.Process()
 				}()
 			}
 
@@ -104,14 +83,6 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger)
 	}
 
 	return &wg
-}
-
-func ProcessJob(ctx context.Context, job Job) error {
-	if job == nil {
-		return fmt.Errorf("nil audit job")
-	}
-
-	return job.Process()
 }
 
 func (q *Queue) Close() {

@@ -32,7 +32,6 @@ type RuleScope string
 const (
 	RuleScopeRequest  RuleScope = "request"
 	RuleScopeResponse RuleScope = "response"
-	RuleScopeFailure  RuleScope = "failure"
 )
 
 type RuleSelector struct {
@@ -101,7 +100,7 @@ type RuleValidation interface {
 func (s RuleScopes) Validate() error {
 	for _, scope := range s {
 		switch scope {
-		case RuleScopeRequest, RuleScopeResponse, RuleScopeFailure:
+		case RuleScopeRequest, RuleScopeResponse:
 			continue
 		default:
 			return fmt.Errorf("invalid rule scope %q", scope)
@@ -119,7 +118,6 @@ func (s *RuleScopes) DefaultConfiguration() {
 	*s = RuleScopes{
 		RuleScopeRequest,
 		RuleScopeResponse,
-		RuleScopeFailure,
 	}
 }
 
