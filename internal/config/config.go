@@ -4,7 +4,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -14,94 +13,90 @@ import (
 type Config struct {
 	AppLog      string `yaml:"app_log"`
 	FindingsLog string `yaml:"findings_log"` // WAL will share the same directory
+	RuleSetPath string `yaml:"rules"`
 
 	Addr        string `yaml:"addr"`
 	QueueSize   int    `yaml:"queue_size"`
 	WorkerCount int    `yaml:"worker_count"`
 }
 
-func LoadConfigurationFile() Config {
+func LoadConfigurationFile() (Config, error) {
 	cfgFilePath := os.Getenv("API_OBSERVER_CONFIG")
 
-	// If the user explicitly provides a configuration file,
-	// require that file to exist.
-	if cfgFilePath != "" {
-		cfg, err := loadConfiguration(cfgFilePath)
+	if cfgFilePath == "" {
+		cfgDir, err := os.UserConfigDir()
 		if err != nil {
-			log.Fatalf(
-				"Could not load config file %q: %v",
+			return Config{}, fmt.Errorf(
+				"could not find config directory: %w",
+				err,
+			)
+		}
+
+		appConfigDir := filepath.Join(
+			cfgDir,
+			"api-observer",
+		)
+
+		cfgFilePath = filepath.Join(
+			appConfigDir,
+			"config.yaml",
+		)
+
+		cfg, err := loadConfiguration(cfgFilePath)
+
+		switch {
+		case err == nil:
+			return cfg, nil
+
+		case errors.Is(err, os.ErrNotExist):
+			cfg = DefaultConfig()
+
+			if err := cfg.Validate(); err != nil {
+				return Config{}, fmt.Errorf(
+					"invalid default configuration: %w",
+					err,
+				)
+			}
+
+			if err := writeDefaultConfiguration(
+				appConfigDir,
+				cfgFilePath,
+				cfg,
+			); err != nil {
+				return Config{}, fmt.Errorf(
+					"could not create default configuration: %w",
+					err,
+				)
+			}
+
+			return cfg, nil
+
+		default:
+			return Config{}, fmt.Errorf(
+				"could not load config file %q: %w",
 				cfgFilePath,
 				err,
 			)
 		}
-
-		return cfg
 	}
-
-	// Otherwise use the default user configuration directory.
-	cfgDir, err := os.UserConfigDir()
-	if err != nil {
-		log.Fatalf(
-			"Could not find config directory: %v",
-			err,
-		)
-	}
-
-	appConfigDir := filepath.Join(
-		cfgDir,
-		"api-observer",
-	)
-
-	cfgFilePath = filepath.Join(
-		appConfigDir,
-		"config.yaml",
-	)
 
 	cfg, err := loadConfiguration(cfgFilePath)
-
-	switch {
-	case err == nil:
-		return cfg
-
-	case errors.Is(err, os.ErrNotExist):
-		cfg = DefaultConfig()
-
-		if err = cfg.Validate(); err != nil {
-			log.Fatalf(
-				"Invalid default configuration: %v",
-				err,
-			)
-		}
-
-		if err = writeDefaultConfiguration(
-			appConfigDir,
-			cfgFilePath,
-			cfg,
-		); err != nil {
-			log.Fatalf(
-				"Could not create default configuration: %v",
-				err,
-			)
-		}
-
-		return cfg
-
-	default:
-		log.Fatalf(
-			"Could not load config file %q: %v",
+	if err != nil {
+		return Config{}, fmt.Errorf(
+			"could not load config file %q: %w",
 			cfgFilePath,
 			err,
 		)
 	}
 
-	// log.Fatalf exits, but Go still requires a return.
-	return Config{}
+	return cfg, nil
 }
 
 func DefaultConfig() Config {
 	return Config{
 		AppLog:      "logs/api-observer.log",
 		FindingsLog: "logs/findings.jsonl",
+		RuleSetPath: "",
 
 		Addr:        ":24899",
 		QueueSize:   1000,
@@ -150,8 +145,6 @@ func writeDefaultConfiguration(
 		)
 	}
 
-	// O_EXCL prevents accidentally overwriting a configuration
-	// that appeared between our existence check and this write.
 	file, err := os.OpenFile(
 		configPath,
 		os.O_WRONLY|os.O_CREATE|os.O_EXCL,
