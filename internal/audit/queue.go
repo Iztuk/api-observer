@@ -74,7 +74,10 @@ func (q *Queue) StartWorkers(ctx context.Context, rs *RuleSet, count int, al, fl
 						}
 					}()
 
-					findings := rs.Evaluate(job)
+					findings, err := rs.Evaluate(job)
+					if err != nil {
+						al.Printf("an error occured while evaluating job: %v", err)
+					}
 					for _, finding := range findings {
 						finding.Log(fl)
 					}

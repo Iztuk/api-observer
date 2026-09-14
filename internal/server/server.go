@@ -79,6 +79,8 @@ func RunServer(ctx context.Context, background bool) error {
 		findingsLogger,
 	)
 
+	appLogger.Println("API Observer started")
+
 	defer func() {
 		queue.Close()
 		wg.Wait()

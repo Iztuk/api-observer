@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"time"
+	"net/url"
 
 	"github.com/google/uuid"
 )
@@ -18,7 +18,7 @@ type Finding struct {
 	Tags     []string
 
 	Metadata  Metadata
-	Timestamp time.Time
+	Timestamp string
 }
 
 type Metadata struct {
@@ -42,7 +42,7 @@ const (
 
 type RequestJob struct {
 	Method        string
-	URL           string
+	URL           url.URL
 	Header        http.Header
 	Body          string
 	ContentLength int64

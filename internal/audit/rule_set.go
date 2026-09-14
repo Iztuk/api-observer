@@ -13,13 +13,12 @@ type RuleSet struct {
 }
 
 type Rule struct {
-	Enabled     *bool      `json:"enabled" yaml:"enabled"`
+	Disabled    bool       `json:"disabled" yaml:"disabled"`
 	Scope       RuleScopes `json:"scope" yaml:"scope"`
 	Description string     `json:"description,omitempty" yaml:"description,omitempty"`
 
-	Selector RuleSelector `json:"selector,omitempty" yaml:"selector,omitempty"`
-	Match    RuleMatch    `json:"match" yaml:"match"`
-	Finding  RuleFinding  `json:"finding" yaml:"finding"`
+	Match   RuleMatch   `json:"match" yaml:"match"`
+	Finding RuleFinding `json:"finding" yaml:"finding"`
 
 	Chain       string `json:"chain,omitempty" yaml:"chain,omitempty"` // HostRule name will be the reference to the chained HostRule
 	ChainedRule *Rule  `json:"-" yaml:"-"`
@@ -33,10 +32,6 @@ const (
 	RuleScopeRequest  RuleScope = "request"
 	RuleScopeResponse RuleScope = "response"
 )
-
-type RuleSelector struct {
-	Hosts []string `json:"hosts,omitempty" yaml:"hosts,omitempty"`
-}
 
 type RuleMatch struct {
 	Mode       MatchMode       `json:"mode,omitempty" yaml:"mode,omitempty"`
@@ -81,8 +76,16 @@ type MatchOperator string
 const (
 	MatchOperatorRegex       MatchOperator = "regex"
 	MatchOperatorStringEqual MatchOperator = "string_equal"
-	MatchOperatorLessThan    MatchOperator = "less_than"
 	MatchOperatorDetectSQLi  MatchOperator = "detect_sqli"
+
+	MatchOperatorEqual    MatchOperator = "equal"
+	MatchOperatorNotEqual MatchOperator = "not_equal"
+
+	MatchOperatorLessThan    MatchOperator = "less_than"
+	MatchOperatorGreaterThan MatchOperator = "greater_than"
+
+	MatchOperatorLessThanOrEqual    MatchOperator = "less_than_or_equal"
+	MatchOperatorGreaterThanOrEqual MatchOperator = "greater_than_or_equal"
 )
 
 type RuleFinding struct {
@@ -185,7 +188,7 @@ func (t *RuleTarget) DefaultConfiguration() {}
 
 func (o MatchOperator) Validate() error {
 	switch o {
-	case MatchOperatorRegex, MatchOperatorStringEqual, MatchOperatorLessThan, MatchOperatorDetectSQLi:
+	case MatchOperatorRegex, MatchOperatorStringEqual, MatchOperatorDetectSQLi, MatchOperatorEqual, MatchOperatorNotEqual, MatchOperatorGreaterThan, MatchOperatorGreaterThanOrEqual, MatchOperatorLessThan, MatchOperatorLessThanOrEqual:
 		return nil
 	default:
 		return fmt.Errorf("invalid match operator %q", o)
@@ -210,11 +213,6 @@ func ParseRuleSet(content string) (*RuleSet, error) {
 	}
 
 	for _, rule := range ruleset.Rules {
-		if rule.Enabled == nil {
-			v := true
-			rule.Enabled = &v
-		}
-
 		if len(rule.Scope) == 0 {
 			rule.Scope.DefaultConfiguration()
 		} else {
