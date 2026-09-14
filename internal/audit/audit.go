@@ -2,13 +2,15 @@
 package audit
 
 import (
+	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-type Findings struct {
+type Finding struct {
 	ID       uuid.UUID
 	Title    string
 	Message  string
@@ -23,6 +25,20 @@ type Metadata struct {
 	RequestID string
 	Source    string
 }
+
+type Job struct {
+	Type JobType
+
+	Request  *RequestJob
+	Response *ResponseJob
+}
+
+type JobType string
+
+const (
+	JobTypeRequest  JobType = "request"
+	JobTypeResponse JobType = "response"
+)
 
 type RequestJob struct {
 	Method        string
@@ -41,4 +57,10 @@ type ResponseJob struct {
 	ContentLength int64
 
 	Metadata Metadata
+}
+
+func (f Finding) Log(l *log.Logger) {
+	finding, _ := json.Marshal(f)
+
+	l.Println(finding)
 }

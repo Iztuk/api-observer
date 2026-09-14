@@ -18,6 +18,7 @@ func main() {
 	appLogger, appLogFile, err := newLogger(
 		cfg.AppLog,
 		true,
+		log.Ldate|log.Ltime,
 	)
 	if err != nil {
 		log.Fatalf(
@@ -30,6 +31,7 @@ func main() {
 	findingsLogger, findingsLogFile, err := newLogger(
 		cfg.FindingsLog,
 		false,
+		0,
 	)
 	if err != nil {
 		appLogger.Fatalf(
@@ -55,6 +57,7 @@ func main() {
 	wg := queue.StartWorkers(
 		ctx,
 		cfg.WorkerCount,
+		appLogger,
 		findingsLogger,
 	)
 
@@ -74,6 +77,7 @@ func main() {
 func newLogger(
 	logPath string,
 	writeStdout bool,
+	flag int,
 ) (*log.Logger, *os.File, error) {
 	dir := filepath.Dir(logPath)
 
@@ -104,7 +108,7 @@ func newLogger(
 	logger := log.New(
 		writer,
 		"",
-		log.Ldate|log.Ltime,
+		flag,
 	)
 
 	return logger, file, nil

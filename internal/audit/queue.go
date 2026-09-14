@@ -7,10 +7,6 @@ import (
 	"sync"
 )
 
-type Job interface {
-	Process()
-}
-
 type Queue struct {
 	jobs chan Job
 	mu   sync.RWMutex
@@ -18,12 +14,16 @@ type Queue struct {
 	once sync.Once
 }
 
-func (j RequestJob) Process() {
-	log.Printf("Processed: %v\n", j)
+func (j RequestJob) Evaluate() []Finding {
+	findings := make([]Finding, 0)
+
+	return findings
 }
 
-func (j ResponseJob) Process() {
-	log.Printf("Processed: %v\n", j)
+func (j ResponseJob) Evaluate() []Finding {
+	findings := make([]Finding, 0)
+
+	return findings
 }
 
 func NewQueue(size int) *Queue {
@@ -40,7 +40,7 @@ func (q *Queue) TryEnqueue(job Job) bool {
 		return false
 	}
 
-	if job == nil {
+	if job.Request == nil && job.Response == nil {
 		return false
 	}
 
@@ -52,7 +52,7 @@ func (q *Queue) TryEnqueue(job Job) bool {
 	}
 }
 
-func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger) *sync.WaitGroup {
+func (q *Queue) StartWorkers(ctx context.Context, rs *RuleSet, count int, al, fl *log.Logger) *sync.WaitGroup {
 	var wg sync.WaitGroup
 
 	for i := range count {
@@ -65,8 +65,8 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger)
 				func() {
 					defer func() {
 						if r := recover(); r != nil {
-							logger.Printf(
-								"audit worker %d panic: %v\n%s",
+							al.Printf(
+								"audit worker %d panic: %v\n%s\n",
 								workerID,
 								r,
 								debug.Stack(),
@@ -74,11 +74,14 @@ func (q *Queue) StartWorkers(ctx context.Context, count int, logger *log.Logger)
 						}
 					}()
 
-					job.Process()
+					findings := rs.Evaluate(job)
+					for _, finding := range findings {
+						finding.Log(fl)
+					}
 				}()
 			}
 
-			logger.Printf("audit worker %d queue closed", workerID)
+			al.Printf("audit worker %d queue closed", workerID)
 		}(i)
 	}
 

@@ -40,7 +40,7 @@ func TestQueue(t *testing.T) {
 		},
 	}
 
-	wg := q.StartWorkers(ctx, 1, logger)
+	wg := q.StartWorkers(ctx, 1, logger, logger)
 
 	for i, job := range jobs {
 		if ok := q.TryEnqueue(job); !ok {
