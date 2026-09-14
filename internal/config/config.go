@@ -96,7 +96,7 @@ func DefaultConfig() Config {
 	return Config{
 		AppLog:      "logs/api-observer.log",
 		FindingsLog: "logs/findings.jsonl",
-		RuleSetPath: "",
+		RuleSetPath: "test-env/api-observer-rules.yaml",
 
 		Addr:        ":24899",
 		QueueSize:   1000,

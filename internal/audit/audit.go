@@ -42,7 +42,7 @@ const (
 
 type RequestJob struct {
 	Method        string
-	URL           url.URL
+	URL           *url.URL
 	Header        http.Header
 	Body          string
 	ContentLength int64
