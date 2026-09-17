@@ -3,13 +3,19 @@ package server
 import (
 	"api-observer/internal/audit"
 	"api-observer/internal/config"
+	"api-observer/internal/ingest"
+	ingestv1 "api-observer/proto/ingest/v1"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
+	"time"
+
+	"google.golang.org/grpc"
 )
 
 func RunServer(ctx context.Context, background bool) error {
@@ -49,28 +55,43 @@ func RunServer(ctx context.Context, background bool) error {
 
 	log.SetOutput(appLogger.Writer())
 
-	fc, err := loadFile(cfg.RuleSetPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			fc = ""
-		} else {
-			return fmt.Errorf(
-				"failed to load rule set: %w",
-				err,
-			)
-		}
-	}
+	var rs *audit.RuleSet
 
-	rs, err := audit.ParseRuleSet(fc)
-	if err != nil {
-		return fmt.Errorf(
-			"failed to parse rule set: %w",
-			err,
-		)
+	if cfg.RuleSetPath == "" {
+		rs = audit.NewRuleSet()
+	} else {
+		fc, err := loadFile(cfg.RuleSetPath)
+		if err != nil {
+			return fmt.Errorf("failed to load rule set: %w", err)
+		}
+
+		rs, err = audit.ParseRuleSet(fc)
+		if err != nil {
+			return fmt.Errorf("failed to parse rule set: %w", err)
+		}
 	}
 
 	queue := audit.NewQueue(cfg.QueueSize)
 
+	// Open the gRPC listener before starting workers.
+	listener, err := net.Listen("tcp", cfg.Addr)
+	if err != nil {
+		return fmt.Errorf(
+			"failed to create gRPC listener: %w",
+			err,
+		)
+	}
+
+	// Initialize the gRPC server.
+	grpcServer := grpc.NewServer()
+
+	// Register the ingest service.
+	ingestv1.RegisterIngestServiceServer(
+		grpcServer,
+		ingest.NewServer(queue),
+	)
+
+	// Start audit workers.
 	wg := queue.StartWorkers(
 		ctx,
 		rs,
@@ -79,8 +100,7 @@ func RunServer(ctx context.Context, background bool) error {
 		findingsLogger,
 	)
 
-	appLogger.Println("API Observer started")
-
+	// Clean up the queue when RunServer exits.
 	defer func() {
 		queue.Close()
 		wg.Wait()
@@ -89,9 +109,54 @@ func RunServer(ctx context.Context, background bool) error {
 		appLogger.Println("API Observer stopped")
 	}()
 
-	<-ctx.Done()
+	// Run gRPC in a separate goroutine.
+	serverErr := make(chan error, 1)
 
-	appLogger.Println("shutdown signal received")
+	go func() {
+		serverErr <- grpcServer.Serve(listener)
+	}()
+
+	appLogger.Printf(
+		"API Observer started; gRPC listening on %s",
+		listener.Addr(),
+	)
+
+	// Wait for either a shutdown signal or a server failure.
+	select {
+	case <-ctx.Done():
+		appLogger.Println("shutdown signal received")
+
+	case err := <-serverErr:
+		if err != nil {
+			grpcServer.Stop()
+			return fmt.Errorf(
+				"gRPC server failed: %w",
+				err,
+			)
+		}
+	}
+
+	// Stop accepting new connections and allow active RPCs to finish.
+	stopped := make(chan struct{})
+
+	go func() {
+		grpcServer.GracefulStop()
+		close(stopped)
+	}()
+
+	// Don't allow a collector to keep shutdown hanging forever.
+	select {
+	case <-stopped:
+		appLogger.Println("gRPC server stopped")
+
+	case <-time.After(5 * time.Second):
+		appLogger.Println(
+			"gRPC shutdown timed out; forcing shutdown",
+		)
+
+		grpcServer.Stop()
+		<-stopped
+	}
 
 	return nil
 }
