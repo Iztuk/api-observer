@@ -59,8 +59,11 @@ type ResponseJob struct {
 	Metadata Metadata
 }
 
-func (f Finding) Log(l *log.Logger) {
-	finding, _ := json.Marshal(f)
+func (f Finding) Log(al, fl *log.Logger) {
+	finding, err := json.Marshal(f)
+	if err != nil {
+		al.Printf("failed to marshal finding %v: \n%v", err)
+	}
 
-	l.Println(finding)
+	fl.Println(string(finding))
 }

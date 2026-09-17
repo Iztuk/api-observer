@@ -6,7 +6,6 @@ import (
 	"api-observer/internal/ingest"
 	ingestv1 "api-observer/proto/ingest/v1"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func RunServer(ctx context.Context, background bool) error {
@@ -57,6 +57,7 @@ func RunServer(ctx context.Context, background bool) error {
 
 	var rs *audit.RuleSet
 
+	log.Println(cfg)
 	if cfg.RuleSetPath == "" {
 		rs = audit.NewRuleSet()
 	} else {
@@ -70,6 +71,7 @@ func RunServer(ctx context.Context, background bool) error {
 			return fmt.Errorf("failed to parse rule set: %w", err)
 		}
 	}
+	log.Println(rs)
 
 	queue := audit.NewQueue(cfg.QueueSize)
 
@@ -90,6 +92,9 @@ func RunServer(ctx context.Context, background bool) error {
 		grpcServer,
 		ingest.NewServer(queue),
 	)
+
+	// Register Reflection service on gRPC server
+	reflection.Register(grpcServer)
 
 	// Start audit workers.
 	wg := queue.StartWorkers(

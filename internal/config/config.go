@@ -49,7 +49,11 @@ func LoadConfigurationFile() (Config, error) {
 			return cfg, nil
 
 		case errors.Is(err, os.ErrNotExist):
-			cfg = DefaultConfig()
+			c, err := DefaultConfig()
+			if err != nil {
+				return Config{}, fmt.Errorf("%s", err.Error())
+			}
+			cfg = c
 
 			if err := cfg.Validate(); err != nil {
 				return Config{}, fmt.Errorf(
@@ -92,16 +96,46 @@ func LoadConfigurationFile() (Config, error) {
 	return cfg, nil
 }
 
-func DefaultConfig() Config {
+func DefaultConfig() (Config, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return Config{}, fmt.Errorf(
+			"failed to get user config directory: %w",
+			err,
+		)
+	}
+
+	appDir := filepath.Join(configDir, "api-observer")
+
+	if err := os.MkdirAll(appDir, 0o700); err != nil {
+		return Config{}, fmt.Errorf(
+			"failed to create application config directory: %w",
+			err,
+		)
+	}
+
 	return Config{
-		AppLog:      "logs/api-observer.log",
-		FindingsLog: "logs/findings.jsonl",
-		RuleSetPath: "test-env/api-observer-rules.yaml",
+		AppLog: filepath.Join(
+			appDir,
+			"logs",
+			"api-observer.log",
+		),
+
+		FindingsLog: filepath.Join(
+			appDir,
+			"logs",
+			"findings.jsonl",
+		),
+
+		RuleSetPath: filepath.Join(
+			appDir,
+			"rules.yaml",
+		),
 
 		Addr:        ":24899",
 		QueueSize:   1000,
 		WorkerCount: 5,
-	}
+	}, nil
 }
 
 func loadConfiguration(path string) (Config, error) {

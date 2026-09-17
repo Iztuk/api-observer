@@ -1,1 +1,19 @@
 rules:
+  admin_endpoint_access:
+    disabled: false
+    description: "Detect access to administrative endpoints"
+
+    match:
+      mode: all
+      conditions:
+        - target: path
+          operator: regex
+          value: "^/admin(?:/|$)"
+
+    finding:
+      title: "Admin Endpoint Accessed"
+      message: "A request was made to an administrative endpoint."
+      severity: warning
+      tags:
+        - admin
+        - monitoring
