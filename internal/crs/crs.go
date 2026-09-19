@@ -67,7 +67,12 @@ const (
 	OperatorRegex      OperatorType = "rx"
 	OperatorDetectSQLi OperatorType = "detectSQLi"
 	OperatorStringEq   OperatorType = "streq"
-	OperatorLessThan   OperatorType = "lt"
+
+	OperatorEqual              OperatorType = "eq"
+	OperatorGreaterThan        OperatorType = "gt"
+	OperatorGreaterThanOrEqual OperatorType = "ge"
+	OperatorLessThan           OperatorType = "lt"
+	OperatorLessThanOrEqual    OperatorType = "le"
 )
 
 func (ot OperatorType) IsValid() bool {

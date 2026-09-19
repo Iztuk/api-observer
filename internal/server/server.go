@@ -57,7 +57,6 @@ func RunServer(ctx context.Context, background bool) error {
 
 	var rs *audit.RuleSet
 
-	log.Println(cfg)
 	if cfg.RuleSetPath == "" {
 		rs = audit.NewRuleSet()
 	} else {
@@ -71,7 +70,6 @@ func RunServer(ctx context.Context, background bool) error {
 			return fmt.Errorf("failed to parse rule set: %w", err)
 		}
 	}
-	log.Println(rs)
 
 	queue := audit.NewQueue(cfg.QueueSize)
 
