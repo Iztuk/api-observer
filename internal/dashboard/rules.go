@@ -1,9 +1,13 @@
 package dashboard
 
 import (
+	"api-observer/internal/crs"
 	"api-observer/internal/dashboard/views/rules"
+	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"gopkg.in/yaml.v3"
 )
 
 func (h *Handler) RulesPage(w http.ResponseWriter, r *http.Request) {
@@ -20,15 +24,66 @@ func (h *Handler) RulesImportPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type TranslateImportRequest struct {
+	Source string `json:"source"`
+	Type   string `json:"type"`
+}
+
 func (h *Handler) RulesImportTranslate(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	importValue := r.FormValue("import-editor-value")
+	var req TranslateImportRequest
 
-	// Replace importValue with translated YAML later.
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		return
+	}
 
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	switch req.Type {
+	case "crs":
+		// Separate the source into individual SecRule directives.
+		rawRules, err := crs.SplitSecRules(req.Source)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
-	fmt.Fprintf(w, importValue)
+		// Parse the directives into CRS rules.
+		crsRules, err := crs.ParseRules(rawRules)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Translate the entire set, including chained rules and warnings.
+		results, err := crs.TranslateRules(crsRules)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Convert translation results into YAML.
+		data, err := yaml.Marshal(results)
+		if err != nil {
+			http.Error(
+				w,
+				"failed to serialize translation results",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/yaml; charset=utf-8")
+		_, _ = w.Write(data)
+		return
+
+	default:
+		http.Error(
+			w,
+			fmt.Sprintf("unsupported import type: %s", req.Type),
+			http.StatusBadRequest,
+		)
+		return
+	}
 }

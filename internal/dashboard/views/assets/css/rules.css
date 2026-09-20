@@ -1,0 +1,114 @@
+.editors {
+  display: flex;
+  gap: 1rem;
+
+  width: 100%;
+  min-width: 0;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.editors section {
+  flex: 1 0 450px;
+  min-width: 450px;
+}
+
+.rules-import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: 1rem 0;
+}
+
+.translate-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+
+  min-width: 150px;
+  padding: 0.7rem 1.25rem;
+
+  color: var(--text-color);
+  background: var(--sidebar-background);
+
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.translate-button:hover:not(:disabled) {
+  background: var(--hover-background);
+}
+
+.translate-button:focus-visible {
+  outline: 2px solid var(--text-color);
+  outline-offset: 3px;
+}
+
+.translate-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+/* Hidden until the request starts. */
+.translate-button__spinner {
+  display: none;
+
+  width: 16px;
+  height: 16px;
+
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+
+  animation: translate-spin 0.7s linear infinite;
+}
+
+.translate-button[aria-busy="true"] .translate-button__spinner {
+  display: inline-block;
+}
+
+#rule-type-selector {
+  padding: 0.7rem 1rem;
+
+  color: var(--text-color);
+  background: var(--sidebar-background);
+
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+
+  font: inherit;
+  font-size: 0.875rem;
+
+  cursor: pointer;
+}
+
+#rule-type-selector:hover {
+  background: var(--hover-background);
+}
+
+#rule-type-selector:focus-visible {
+  outline: 2px solid var(--text-color);
+  outline-offset: 2px;
+}
+
+@keyframes translate-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .translate-button__spinner {
+    animation: none;
+    border-right-color: currentColor;
+  }
+}

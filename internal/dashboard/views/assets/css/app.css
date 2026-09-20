@@ -103,7 +103,8 @@ a {
 
   padding: 1rem;
 
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Hidden sidebar checkbox */
@@ -365,4 +366,8 @@ a {
   .sidebar {
     transition: none;
   }
+}
+
+.api-observer-editor {
+  border: 1px solid var(--border-color);
 }

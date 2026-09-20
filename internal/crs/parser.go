@@ -5,6 +5,44 @@ import (
 	"strings"
 )
 
+func SplitSecRules(raw string) ([]string, error) {
+	var rules []string
+	var current strings.Builder
+
+	raw = strings.ReplaceAll(raw, "\r\n", "\n")
+
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		current.WriteString(line)
+
+		// Count trailing backslashes so an escaped
+		// backslash isn't mistaken for a continuation.
+		backslashes := 0
+		for i := len(line) - 1; i >= 0 && line[i] == '\\'; i-- {
+			backslashes++
+		}
+
+		if backslashes%2 == 1 {
+			current.WriteByte('\n')
+			continue
+		}
+
+		rules = append(rules, current.String())
+		current.Reset()
+	}
+
+	if current.Len() > 0 {
+		return nil, fmt.Errorf("unfinished rule: trailing line continuation")
+	}
+
+	return rules, nil
+}
+
 func ParseRules(rawRules []string) ([]CRSRule, error) {
 	var rules []CRSRule
 
@@ -14,22 +52,30 @@ func ParseRules(rawRules []string) ([]CRSRule, error) {
 			return nil, err
 		}
 
-		if rule.Actions.Chain {
-			if i+1 >= len(rawRules) {
+		// Start at the parent rule.
+		current := &rule
+
+		// Continue consuming children as long as
+		// the current rule declares a chain.
+		for current.Actions.Chain {
+			i++
+
+			if i >= len(rawRules) {
 				return nil, fmt.Errorf(
 					"rule %q declares a chain but has no child rule",
-					rule.Actions.ID,
+					current.Actions.ID,
 				)
 			}
 
-			child, err := ParseSecRule(rawRules[i+1])
+			child, err := ParseSecRule(rawRules[i])
 			if err != nil {
 				return nil, err
 			}
 
-			rule.ChainedRule = &child
-			i++
+			current.ChainedRule = &child
+			current = current.ChainedRule
 		}
+
 		rules = append(rules, rule)
 	}
 
