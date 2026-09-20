@@ -1,0 +1,14 @@
+package rules
+
+import "api-observer/internal/dashboard/views"
+
+templ RulesPage(title string) {
+    @views.Layout(title) {
+        @RulesPageContent()
+    }
+}
+
+templ RulesPageContent() {
+    <a href="/rules/import">Import Rule</a>
+    <div>This is the rules page</div>
+}

@@ -15,9 +15,10 @@ type Config struct {
 	FindingsLog string `yaml:"findings_log"` // WAL will share the same directory
 	RuleSetPath string `yaml:"rules"`
 
-	Addr        string `yaml:"addr"`
-	QueueSize   int    `yaml:"queue_size"`
-	WorkerCount int    `yaml:"worker_count"`
+	IngestPort    string `yaml:"ingest_port"`
+	DashboardPort string `yaml:"dashboard_port"`
+	QueueSize     int    `yaml:"queue_size"`
+	WorkerCount   int    `yaml:"worker_count"`
 }
 
 func LoadConfigurationFile() (Config, error) {
@@ -132,9 +133,10 @@ func DefaultConfig() (Config, error) {
 			"rules.yaml",
 		),
 
-		Addr:        ":24899",
-		QueueSize:   1000,
-		WorkerCount: 5,
+		IngestPort:    ":24899",
+		DashboardPort: ":8080",
+		QueueSize:     1000,
+		WorkerCount:   5,
 	}, nil
 }
 
@@ -215,8 +217,12 @@ func (cfg Config) Validate() error {
 		return fmt.Errorf("findings_log cannot be empty")
 	}
 
-	if cfg.Addr == "" {
-		return fmt.Errorf("addr cannot be empty")
+	if cfg.IngestPort == "" {
+		return fmt.Errorf("ingest_port cannot be empty")
+	}
+
+	if cfg.DashboardPort == "" {
+		return fmt.Errorf("dashboard_port cannot be empty")
 	}
 
 	if cfg.QueueSize <= 0 {

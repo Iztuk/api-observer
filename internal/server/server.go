@@ -3,13 +3,16 @@ package server
 import (
 	"api-observer/internal/audit"
 	"api-observer/internal/config"
+	"api-observer/internal/dashboard"
 	"api-observer/internal/ingest"
 	ingestv1 "api-observer/proto/ingest/v1"
+
 	"context"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -19,6 +22,7 @@ import (
 )
 
 func RunServer(ctx context.Context, background bool) error {
+	// Load configuration.
 	cfg, err := config.LoadConfigurationFile()
 	if err != nil {
 		return fmt.Errorf(
@@ -62,39 +66,81 @@ func RunServer(ctx context.Context, background bool) error {
 	} else {
 		fc, err := loadFile(cfg.RuleSetPath)
 		if err != nil {
-			return fmt.Errorf("failed to load rule set: %w", err)
+			return fmt.Errorf(
+				"failed to load rule set: %w",
+				err,
+			)
 		}
 
 		rs, err = audit.ParseRuleSet(fc)
 		if err != nil {
-			return fmt.Errorf("failed to parse rule set: %w", err)
+			return fmt.Errorf(
+				"failed to parse rule set: %w",
+				err,
+			)
 		}
 	}
 
 	queue := audit.NewQueue(cfg.QueueSize)
 
-	// Open the gRPC listener before starting workers.
-	listener, err := net.Listen("tcp", cfg.Addr)
+	grpcListener, err := net.Listen(
+		"tcp",
+		cfg.IngestPort,
+	)
 	if err != nil {
 		return fmt.Errorf(
 			"failed to create gRPC listener: %w",
 			err,
 		)
 	}
+	defer grpcListener.Close()
 
-	// Initialize the gRPC server.
+	httpListener, err := net.Listen(
+		"tcp",
+		cfg.DashboardPort,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"failed to create HTTP listener: %w",
+			err,
+		)
+	}
+	defer httpListener.Close()
+
 	grpcServer := grpc.NewServer()
 
-	// Register the ingest service.
 	ingestv1.RegisterIngestServiceServer(
 		grpcServer,
 		ingest.NewServer(queue),
 	)
 
-	// Register Reflection service on gRPC server
 	reflection.Register(grpcServer)
 
-	// Start audit workers.
+	mux := http.NewServeMux()
+
+	fileServer := http.FileServer(
+		http.Dir("./internal/dashboard/views/assets"),
+	)
+
+	mux.Handle(
+		"GET /static/",
+		http.StripPrefix("/static/", fileServer),
+	)
+
+	dashboardHandler := dashboard.NewHandler()
+
+	dashboardHandler.RegisterRoutes(mux)
+
+	httpServer := &http.Server{
+		Handler: mux,
+
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+
+		ErrorLog: appLogger,
+	}
+
 	wg := queue.StartWorkers(
 		ctx,
 		rs,
@@ -103,7 +149,6 @@ func RunServer(ctx context.Context, background bool) error {
 		findingsLogger,
 	)
 
-	// Clean up the queue when RunServer exits.
 	defer func() {
 		queue.Close()
 		wg.Wait()
@@ -112,34 +157,79 @@ func RunServer(ctx context.Context, background bool) error {
 		appLogger.Println("API Observer stopped")
 	}()
 
-	// Run gRPC in a separate goroutine.
-	serverErr := make(chan error, 1)
+	type serverResult struct {
+		name string
+		err  error
+	}
+
+	serverErr := make(chan serverResult, 2)
 
 	go func() {
-		serverErr <- grpcServer.Serve(listener)
+		serverErr <- serverResult{
+			name: "gRPC",
+			err:  grpcServer.Serve(grpcListener),
+		}
+	}()
+
+	go func() {
+		serverErr <- serverResult{
+			name: "HTTP",
+			err:  httpServer.Serve(httpListener),
+		}
 	}()
 
 	appLogger.Printf(
-		"API Observer started; gRPC listening on %s",
-		listener.Addr(),
+		"gRPC ingest listening on %s",
+		grpcListener.Addr(),
 	)
 
-	// Wait for either a shutdown signal or a server failure.
+	appLogger.Printf(
+		"HTTP dashboard listening on %s",
+		httpListener.Addr(),
+	)
+
+	appLogger.Println("API Observer started")
+
+	var runErr error
+
 	select {
 	case <-ctx.Done():
-		appLogger.Println("shutdown signal received")
+		appLogger.Println(
+			"shutdown signal received",
+		)
 
-	case err := <-serverErr:
-		if err != nil {
-			grpcServer.Stop()
-			return fmt.Errorf(
-				"gRPC server failed: %w",
-				err,
+	case result := <-serverErr:
+		runErr = fmt.Errorf(
+			"%s server stopped unexpectedly: %v",
+			result.name,
+			result.err,
+		)
+
+		appLogger.Println(runErr)
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(
+		context.Background(),
+		5*time.Second,
+	)
+	defer cancel()
+
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		appLogger.Printf(
+			"HTTP graceful shutdown failed: %v",
+			err,
+		)
+
+		if closeErr := httpServer.Close(); closeErr != nil {
+			appLogger.Printf(
+				"HTTP forced shutdown failed: %v",
+				closeErr,
 			)
 		}
 	}
 
-	// Stop accepting new connections and allow active RPCs to finish.
+	appLogger.Println("HTTP server stopped")
+
 	stopped := make(chan struct{})
 
 	go func() {
@@ -147,7 +237,6 @@ func RunServer(ctx context.Context, background bool) error {
 		close(stopped)
 	}()
 
-	// Don't allow a collector to keep shutdown hanging forever.
 	select {
 	case <-stopped:
 		appLogger.Println("gRPC server stopped")
@@ -161,7 +250,7 @@ func RunServer(ctx context.Context, background bool) error {
 		<-stopped
 	}
 
-	return nil
+	return runErr
 }
 
 func newLogger(
