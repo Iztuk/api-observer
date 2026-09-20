@@ -1,3 +1,5 @@
+import { showToast } from "./toast.js";
+
 async function translateImport() {
   const button = document.getElementById("translate-button");
 
@@ -16,20 +18,24 @@ async function translateImport() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        source: source,
+        source,
         type: ruleType,
       }),
     });
 
+    // The Go handler returns rendered Templ HTML on errors.
     if (!response.ok) {
-      throw new Error(`Translation failed: ${response.status}`);
+      const toastHTML = await response.text();
+      showToast(toastHTML);
+      return;
     }
 
+    // Successful responses contain YAML.
     const translated = await response.text();
-
     window.translatedEditor.setValue(translated);
   } catch (error) {
-    console.error("Failed to translate rule:", error);
+    // This handles network failures and other unexpected JS errors.
+    console.error("Translation failed:", error);
   } finally {
     button.disabled = false;
     button.removeAttribute("aria-busy");

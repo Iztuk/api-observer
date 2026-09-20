@@ -8,8 +8,8 @@ templ Layout(title string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ title }</title>
 			<link rel="stylesheet" href="/static/css/app.css"/>
-
-            @LoadTheme()
+			<link rel="stylesheet" href="/static/css/toast.css"/>
+			@LoadTheme()
 		</head>
 		<body>
 			<input
@@ -44,10 +44,10 @@ templ Layout(title string) {
 				class="sidebar-overlay"
 				aria-label="Close navigation"
 			></label>
+			@SidebarThemeToggle()
+			<div id="toast-container" aria-live="assertive"></div>
+			<script src="/static/htmx.min.js"></script>
 		</body>
-
-        @SidebarThemeToggle()
-        <script src="/static/htmx.min.js"></script>
 	</html>
 }
 
