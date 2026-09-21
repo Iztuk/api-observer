@@ -153,7 +153,7 @@
   color: var(--text-color);
   background: var(--background);
 
-  border: none;
+  border: 1px solid var(--border-color);
 
   font: inherit;
   text-align: left;
@@ -161,9 +161,9 @@
   cursor: pointer;
 }
 
-.rules-list-item + .rules-list-item {
-  border-bottom: 1px solid var(--border-color);
-}
+/* .rules-list-item + .rules-list-item { */
+/*   border-bottom: 1px solid var(--border-color); */
+/* } */
 
 .rules-list-item:hover {
   background: var(--hover-background);
