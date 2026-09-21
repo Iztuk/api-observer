@@ -1,0 +1,28 @@
+{
+  "name": "api-observer",
+  "version": "1.0.0",
+  "description": "API Observer is a self-hosted API observability platform that monitors and evaluates HTTP traffic against OpenAPI contracts and custom security rules. It produces structured findings that help developers identify unexpected behavior, contract violations, and potential security concerns.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "esbuild internal/dashboard/views/scripts/*.js node_modules/monaco-editor/esm/vs/editor/editor.worker.js --bundle --format=esm --outdir=internal/dashboard/views/assets/js --entry-names=[name] --loader:.ttf=file"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Iztuk/api-observer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Iztuk/api-observer/issues"
+  },
+  "homepage": "https://github.com/Iztuk/api-observer#readme",
+  "dependencies": {
+    "monaco-editor": "^0.56.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

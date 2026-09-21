@@ -1,595 +1,593 @@
 package audit
 
 import (
-	"sort"
+	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
-	"sync"
+	"time"
+
+	"github.com/corazawaf/libinjection-go"
+	"github.com/google/uuid"
 )
 
-type RuleID string
-
-const (
-	// RuleRequestPathDoesNotExist applies when an incoming request path cannot be
-	// matched to any path defined in the OpenAPI contract for the selected host.
-	//
-	// Example:
-	//   - request:  GET /admin
-	//   - contract: /users, /users/{id}, /health
-	//
-	// This rule should run before method, content type, and body validation because
-	// those checks require a matching contract path.
-	//
-	// This rule is evaluated against RequestJob values.
-	RuleRequestPathDoesNotExist RuleID = "request.path_does_not_exist"
-
-	// RuleRequestMethodNotAllowed applies when the request path exists in the
-	// OpenAPI contract, but the specific HTTP method is not defined for that path.
-	//
-	// Example:
-	//   - request:  DELETE /users
-	//   - contract: GET /users and POST /users only
-	//
-	// This rule should run after path matching succeeds, but before request body
-	// validation because the operation definition is needed for deeper checks.
-	//
-	// This rule is evaluated against RequestJob values.
-	RuleRequestMethodNotAllowed RuleID = "request.method_not_allowed"
-
-	// RuleRequestContentTypeNotAllowed applies when the request has a body and the
-	// Content-Type header does not match any media type allowed by the OpenAPI
-	// operation's requestBody.content map.
-	//
-	// Example:
-	//   - request Content-Type: text/plain
-	//   - contract allows: application/json
-	//
-	// This validates the declared media type only. It does not prove the body is
-	// actually valid JSON, XML, multipart data, etc.
-	//
-	// This rule is evaluated against RequestJob values.
-	RuleRequestContentTypeNotAllowed RuleID = "request.content_type_not_allowed"
-
-	// RuleRequestBodyMissing applies when the OpenAPI operation declares a required
-	// request body, but the captured request body is empty.
-	//
-	// Example:
-	//   - contract: requestBody.required = true
-	//   - request: POST /users with no body
-	//
-	// This rule should run after the path and method have been resolved to an
-	// OpenAPI operation.
-	//
-	// This rule is evaluated against RequestJob values.
-	RuleRequestBodyMissing RuleID = "request.body_missing"
-
-	// RuleRequestBodyNotAllowed applies when the OpenAPI operation does not define
-	// a requestBody, but the incoming request includes a body.
-	//
-	// Example:
-	//   - contract: GET /health has no requestBody
-	//   - request: GET /health with a JSON body
-	//
-	// This catches clients sending payloads to operations that are expected to be
-	// bodyless.
-	//
-	// This rule is evaluated against RequestJob values.
-	RuleRequestBodyNotAllowed RuleID = "request.body_not_allowed"
-
-	// RuleRequestInvalidBodyFormat applies when the request body does not match the
-	// expected non-JSON media format declared by the OpenAPI contract.
-	//
-	// Example future uses:
-	//	 - application/json body cannot be parsed as JSON
-	//   - multipart/form-data body cannot be parsed as multipart data
-	//   - application/xml body cannot be parsed as XML
-	//   - text/csv body cannot be parsed as CSV
-	//
-	// This is a generic extension point for media-type-specific validators beyond
-	// JSON. It should run only after content type validation determines which media
-	// type applies.
-	//
-	// This rule is evaluated against RequestJob values.
-	RuleRequestInvalidBodyFormat RuleID = "request.invalid_body_format"
-
-	// RuleRequestBodySchemaInvalid applies when the request body is syntactically
-	// valid for its media type, but does not conform to the schema declared by the
-	// OpenAPI contract.
-	//
-	// For the initial implementation, this rule should focus on JSON request bodies
-	// only, such as application/json and application/*+json.
-	//
-	// Example:
-	//   - contract: POST /users requires CreateUserRequest
-	//   - schema requires: email, displayName
-	//   - request body: {"email":"john@example.com"}
-	//   - result: missing required field "displayName"
-	//
-	// This rule should run only after body format validation has succeeded. It
-	// assumes the request body can already be parsed, then checks the parsed value
-	// against a supported subset of the OpenAPI schema.
-	//
-	// This rule is evaluated against RequestJob values.
-	RuleRequestBodySchemaInvalid RuleID = "request.body_schema_invalid"
-
-	// RuleResponseStatusCodeNotDefined applies when the upstream response status
-	// code is not defined in the OpenAPI operation's responses map.
-	//
-	// Example:
-	//   - response status: 500
-	//   - contract responses: 200, 400, 404
-	//
-	// This rule should run after the request path and method have been resolved to
-	// an OpenAPI operation because response validation depends on the selected
-	// operation definition.
-	//
-	// This rule is evaluated against ResponseJob values.
-	RuleResponseStatusCodeNotDefined RuleID = "response.status_code_not_defined"
-
-	// RuleResponseContentTypeNotAllowed applies when the upstream response includes
-	// a body and the Content-Type header does not match any media type allowed by
-	// the OpenAPI response definition for the returned status code.
-	//
-	// Example:
-	//   - response Content-Type: text/plain
-	//   - contract allows: application/json
-	//
-	// This validates the declared media type only. It does not prove the body is
-	// actually valid JSON, XML, multipart data, etc.
-	//
-	// This rule is evaluated against ResponseJob values.
-	RuleResponseContentTypeNotAllowed RuleID = "response.content_type_not_allowed"
-
-	// RuleResponseBodyMissing applies when the OpenAPI response definition declares
-	// response content for the returned status code, but the captured response body
-	// is empty.
-	//
-	// Example:
-	//   - contract: 200 response defines application/json content
-	//   - response: 200 OK with no body
-	//
-	// This rule should run after the response status code has been matched to an
-	// OpenAPI response definition.
-	//
-	// This rule is evaluated against ResponseJob values.
-	RuleResponseBodyMissing RuleID = "response.body_missing"
-
-	// RuleResponseBodyNotAllowed applies when the OpenAPI response definition does
-	// not declare response content for the returned status code, but the upstream
-	// response includes a body.
-	//
-	// Example:
-	//   - contract: 204 response has no content
-	//   - response: 204 No Content with a JSON body
-	//
-	// This catches upstream services returning payloads for responses that are
-	// expected to be bodyless.
-	//
-	// This rule is evaluated against ResponseJob values.
-	RuleResponseBodyNotAllowed RuleID = "response.body_not_allowed"
-
-	// RuleResponseInvalidBodyFormat applies when the response body does not match
-	// the expected non-JSON media format declared by the OpenAPI contract.
-	//
-	// Example future uses:
-	//   - application/json body cannot be parsed as JSON
-	//   - application/xml body cannot be parsed as XML
-	//   - text/csv body cannot be parsed as CSV
-	//
-	// This is a generic extension point for media-type-specific validators beyond
-	// JSON. It should run only after content type validation determines which media
-	// type applies.
-	//
-	// This rule is evaluated against ResponseJob values.
-	RuleResponseInvalidBodyFormat RuleID = "response.invalid_body_format"
-
-	// RuleResponseBodySchemaInvalid applies when the response body is syntactically
-	// valid for its media type, but does not conform to the schema declared by the
-	// OpenAPI contract.
-	//
-	// For the initial implementation, this rule should focus on JSON response bodies
-	// only, such as application/json and application/*+json.
-	//
-	// Example:
-	//   - contract: GET /users/{id} returns User
-	//   - schema requires: id, email, displayName
-	//   - response body: {"id":"123","email":"john@example.com"}
-	//   - result: missing required field "displayName"
-	//
-	// This rule should run only after body format validation has succeeded. It
-	// assumes the response body can already be parsed, then checks the parsed value
-	// against a supported subset of the OpenAPI schema.
-	//
-	// This rule is evaluated against ResponseJob values.
-	RuleResponseBodySchemaInvalid RuleID = "response.body_schema_invalid"
-)
-
-type Rule interface {
-	ID() RuleID
-	Title() string
-	AppliesTo() []JobType
-	Check(ctx RuleContext, job Job, jobID string) ([]Finding, error)
-}
-
-type RuleContext struct {
-	Contracts *ContractRegistry
-}
-
-type RuleEngine struct {
-	rules    []Rule
-	registry *ContractRegistry
-}
-
-func NewRuleEngine(registry *ContractRegistry) *RuleEngine {
-	return &RuleEngine{
-		rules:    getRules(),
-		registry: registry,
-	}
-}
-
-type ContractRegistry struct {
-	mu        sync.RWMutex
-	contracts map[string]*OpenAPIDoc
-	rules     map[string]*HostRulesDoc
-}
-
-type RegisteredHost struct {
-	HostName string
-	Contract *OpenAPIDoc
-	Rules    *HostRulesDoc
-}
-
-func (r *ContractRegistry) RegisteredHosts() []RegisteredHost {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	hosts := make(
-		map[string]RegisteredHost,
-		len(r.contracts)+len(r.rules),
-	)
-
-	for host, contract := range r.contracts {
-		entry := hosts[host]
-
-		entry.HostName = host
-		entry.Contract = contract
-
-		hosts[host] = entry
-	}
-
-	for host, rules := range r.rules {
-		entry := hosts[host]
-
-		entry.HostName = host
-		entry.Rules = rules
-
-		hosts[host] = entry
-	}
-
-	result := make([]RegisteredHost, 0, len(hosts))
-
-	for _, host := range hosts {
-		result = append(result, host)
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].HostName < result[j].HostName
-	})
-
-	return result
-}
-
-func (r *ContractRegistry) RegisterHost(host string, openapi *OpenAPIDoc, hostrules *HostRulesDoc) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.contracts[host] = openapi
-	r.rules[host] = hostrules
-}
-
-func (r *ContractRegistry) HostExists(host string) bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if _, ok := r.contracts[host]; ok {
-		return true
-	}
-
-	if _, ok := r.rules[host]; ok {
-		return true
-	}
-
-	return false
-}
-
-func (r *ContractRegistry) HasOpenAPIContract(host string) bool {
-	if r == nil {
-		return false
-	}
-
-	contract, ok := r.contracts[strings.ToLower(host)]
-	return ok && contract != nil
-}
-
-func (r *ContractRegistry) HasCustomRules(host string) bool {
-	if r == nil {
-		return false
-	}
-
-	rules, ok := r.rules[strings.ToLower(host)]
-	return ok && rules != nil
-}
-
-func (r *ContractRegistry) FindOperation(host, method, path string) (*OpenAPIOperation, bool) {
-	doc, ok := r.contracts[strings.ToLower(host)]
-	if !ok {
-		return nil, false
-	}
-
-	return doc.FindOpenAPIOperation(method, path)
-}
-
-func (r *ContractRegistry) FindPathItem(host, path string) (*OpenAPIPathItem, bool) {
-	doc, ok := r.contracts[strings.ToLower(host)]
-	if !ok {
-		return nil, false
-	}
-
-	if pathItem, ok := doc.Paths[path]; ok {
-		return &pathItem, true
-	}
-
-	for contractPath, pathItem := range doc.Paths {
-		if matchOpenAPIPath(contractPath, path) {
-			return &pathItem, true
-		}
-	}
-
-	return nil, false
-}
-
-func (r *ContractRegistry) FindMethod(host, method, path string) (*OpenAPIOperation, bool) {
-	pathItem, ok := r.FindPathItem(host, path)
-	if !ok {
-		return nil, false
-	}
-
-	op := pathItem.OperationForMethod(method)
-	if op == nil {
-		return nil, false
-	}
-
-	return op, true
-}
-
-func (r *ContractRegistry) FindRequestContentType(host, method, path, contentType string) (mt OpenAPIMediaType, applies, found bool) {
-	pathItem, ok := r.FindPathItem(host, path)
-	if !ok {
-		return OpenAPIMediaType{}, false, false
-	}
-
-	op := pathItem.OperationForMethod(method)
-	if op == nil || op.RequestBody == nil {
-		return OpenAPIMediaType{}, false, false
-	}
-
-	contentType = normalizeMediaType(contentType)
-
-	mediaType, ok := op.RequestBody.Content[contentType]
-	if !ok {
-		return OpenAPIMediaType{}, true, false
-	}
-
-	return mediaType, true, true
-}
-
-func (r *ContractRegistry) FindResponseContentType(host, method, path, status, contentType string) (mt OpenAPIMediaType, applies, found bool) {
-	pathItem, ok := r.FindPathItem(host, path)
-	if !ok {
-		return OpenAPIMediaType{}, false, false
-	}
-
-	op := pathItem.OperationForMethod(method)
-	if op == nil {
-		return OpenAPIMediaType{}, false, false
-	}
-
-	res, ok := op.Responses[status]
-	if !ok {
-		res, ok = op.Responses["default"]
-		if !ok {
-			return OpenAPIMediaType{}, false, false
-		}
-	}
-
-	if len(res.Content) == 0 {
-		return OpenAPIMediaType{}, false, false
-	}
-
-	contentType = normalizeMediaType(contentType)
-
-	mediaType, ok := res.Content[contentType]
-	if !ok {
-		return OpenAPIMediaType{}, true, false
-	}
-
-	return mediaType, true, true
-}
-
-func normalizeMediaType(contentType string) string {
-	contentType = strings.ToLower(strings.TrimSpace(contentType))
-
-	if i := strings.Index(contentType, ";"); i >= 0 {
-		contentType = strings.TrimSpace(contentType[:i])
-	}
-
-	return contentType
-}
-
-func (r *ContractRegistry) FindRequestBody(host, method, path string) (*OpenAPIRequestBody, bool) {
-	op, ok := r.FindOperation(host, method, path)
-	if !ok {
-		return nil, false
-	}
-
-	return op.RequestBody, true
-}
-
-func (r *ContractRegistry) FindResponseBody(host, method, path, status string) (*OpenAPIResponse, bool) {
-	op, ok := r.FindOperation(host, method, path)
-	if !ok {
-		return nil, false
-	}
-
-	res, ok := op.Responses[status]
-	if !ok {
-		res, ok = op.Responses["default"]
-		if !ok {
-			return nil, false
-		}
-	}
-
-	return &res, true
-}
-
-func (r *ContractRegistry) ResolveSchemaRef(host, ref string) (*OpenAPISchema, bool) {
-	doc, ok := r.contracts[strings.ToLower(host)]
-	if !ok {
-		return nil, false
-	}
-
-	return doc.ResolveSchemaRef(ref)
-}
-
-func NewContractRegistry() *ContractRegistry {
-	return &ContractRegistry{
-		contracts: make(map[string]*OpenAPIDoc),
-		rules:     make(map[string]*HostRulesDoc),
-	}
-}
-
-func (r *ContractRegistry) DebugString() string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var b strings.Builder
-
-	b.WriteString("ContractRegistry{\n")
-
-	b.WriteString("  contracts:\n")
-	for host := range r.contracts {
-		b.WriteString("    - ")
-		b.WriteString(host)
-		b.WriteString("\n")
-	}
-
-	b.WriteString("  rules:\n")
-	for host := range r.rules {
-		b.WriteString("    - ")
-		b.WriteString(host)
-		b.WriteString("\n")
-	}
-
-	b.WriteString("}")
-
-	return b.String()
-}
-
-func getRules() []Rule {
-	return []Rule{
-		RequestPathDoesNotExistRule{},
-		RequestMethodNotAllowedRule{},
-		RequestContentTypeNotAllowed{},
-		RequestBodyMissing{},
-		RequestBodyNotAllowed{},
-		RequestBodyInvalidFormat{},
-		RequestBodySchemaInvalid{},
-		ResponseStatusCodeRule{},
-		ResponseContentTypeNotAllowed{},
-		ResponseBodyMissing{},
-		ResponseBodyNotAllowed{},
-		ResponseBodyInvalidFormat{},
-		ResponseBodySchemaInvalid{},
-	}
-}
-
-func (e *RuleEngine) Evaluate(job Job, jobID string) ([]Finding, error) {
-	if e == nil || e.registry == nil {
-		return nil, nil
-	}
-
-	meta := job.Metadata()
-
-	hasOpenAPI := e.registry.HasOpenAPIContract(meta.Host)
-	hasCustomRules := e.registry.HasCustomRules(meta.Host)
-
-	if !hasOpenAPI && !hasCustomRules {
-		return nil, nil
-	}
-
-	var findings []Finding
-
-	if hasOpenAPI {
-		ctx := RuleContext{
-			Contracts: e.registry,
+func (rs *RuleSet) Evaluate(j Job) ([]Finding, error) {
+	findings := make([]Finding, 0)
+
+	for _, rule := range rs.Rules {
+		if rule.Disabled {
+			continue
 		}
 
-		for _, rule := range e.rules {
-			if !ruleApplies(rule, job.JobType()) {
-				continue
+		if rs.evaluateRule(rule, j) {
+			reqID := j.Request.Metadata.RequestID
+			src := j.Request.Metadata.Source
+			if j.Type == JobTypeResponse {
+				reqID = j.Response.Metadata.RequestID
+				src = j.Response.Metadata.Source
 			}
 
-			ruleFindings, err := rule.Check(ctx, job, jobID)
-			if err != nil {
-				return nil, err
-			}
+			findings = append(findings, Finding{
+				ID:       uuid.New(),
+				Title:    rule.Finding.Title,
+				Message:  rule.Finding.Message,
+				Severity: rule.Finding.Severity,
+				Tags:     rule.Finding.Tags,
 
-			findings = append(findings, ruleFindings...)
-		}
-	}
-
-	if hasCustomRules {
-		customRules, ok := e.registry.rules[strings.ToLower(meta.Host)]
-		if !ok {
-			return findings, nil
-		}
-
-		for ruleID, rule := range customRules.Rules {
-			if !customRuleApplies(rule, job.JobType()) || !rule.Enabled {
-				continue
-			}
-
-			ruleFindings, err := rule.CheckHostRule(job, jobID, ruleID)
-			if err != nil {
-				return nil, err
-			}
-
-			findings = append(findings, ruleFindings...)
+				Metadata: Metadata{
+					RequestID: reqID,
+					Source:    src,
+				},
+				Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+			})
 		}
 	}
 
 	return findings, nil
 }
 
-func ruleApplies(rule Rule, jobType JobType) bool {
-	for _, supported := range rule.AppliesTo() {
-		if supported == jobType {
-			return true
-		}
+func (rs *RuleSet) evaluateRule(rule *Rule, job Job) bool {
+	if !rule.Match.EvaluateMatch(job) {
+		return false
 	}
 
-	return false
+	if rule.ChainedRule != nil {
+		return rs.evaluateRule(rule.ChainedRule, job)
+	}
+
+	return true
 }
 
-func customRuleApplies(rule HostRule, jobType JobType) bool {
-	if len(rule.AppliesTo) == 0 {
+func (r RuleMatch) EvaluateMatch(j Job) bool {
+	switch r.Mode {
+	case MatchModeAny:
+		for _, cond := range r.Conditions {
+			if cond.EvaluateCondition(j) {
+				return true
+			}
+		}
+
+		return false
+
+	case MatchModeAll:
+		for _, cond := range r.Conditions {
+			if !cond.EvaluateCondition(j) {
+				return false
+			}
+		}
+
 		return true
+
+	default:
+		return false
+	}
+}
+
+func (c MatchCondition) EvaluateCondition(j Job) bool {
+	if j.Request == nil {
+		return false
 	}
 
-	for _, t := range rule.AppliesTo {
-		if t == jobType {
-			return true
+	switch c.Target {
+	case RuleTargetPath:
+		return evaluateTargetPath(
+			j,
+			c.Operator,
+			c.Value,
+			c.Negated,
+			c.Regex,
+		)
+
+	case RuleTargetQuery:
+		return evaluateTargetQuery(
+			j,
+			c.Operator,
+			c.Key,
+			c.Value,
+			c.Negated,
+			c.Regex,
+		)
+
+	case RuleTargetHeader:
+		return evaluateTargetHeader(
+			j.Request.Header,
+			c.Operator,
+			c.Key,
+			c.Value,
+			c.Negated,
+			c.Regex,
+		)
+
+	case RuleTargetBody:
+		return evaluateTargetBody(
+			j.Request.Body,
+			c.Operator,
+			c.Value,
+			c.Negated,
+			c.Regex,
+		)
+
+	case RuleTargetBodyLength:
+		return evaluateTargetBodyLength(
+			j.Request.ContentLength,
+			c.Operator,
+			c.Value,
+			c.Negated,
+			c.Regex,
+		)
+
+	case RuleTargetMethod:
+		return evaluateTargetMethod(
+			j.Request.Method,
+			c.Operator,
+			c.Value,
+			c.Negated,
+			c.Regex,
+		)
+
+	case RuleTargetCookie:
+		return evaluateTargetCookie(
+			getCookies(j.Request.Header),
+			c.Operator,
+			c.Key,
+			c.Value,
+			c.Negated,
+			c.Regex,
+		)
+
+	case RuleTargetCookieName:
+		return evaluateTargetCookieName(
+			getCookies(j.Request.Header),
+			c.Operator,
+			c.Value,
+			c.Negated,
+			c.Regex,
+		)
+
+	default:
+		return false
+	}
+}
+
+func evaluateTargetPath(
+	j Job,
+	op MatchOperator,
+	val string,
+	neg bool,
+	r *regexp.Regexp,
+) bool {
+	path := j.Request.URL.Path
+
+	found := false
+
+	switch op {
+	case MatchOperatorRegex:
+		if r != nil {
+			found = r.MatchString(path)
+		}
+
+	case MatchOperatorStringEqual:
+		found = path == val
+
+	case MatchOperatorDetectSQLi:
+		found = isSQLi(path)
+
+	default:
+		return false
+	}
+
+	if neg {
+		return !found
+	}
+
+	return found
+}
+
+func evaluateTargetQuery(
+	j Job,
+	op MatchOperator,
+	key,
+	val string,
+	neg bool,
+	r *regexp.Regexp,
+) bool {
+	query := j.Request.URL.Query()
+
+	values := make([]string, 0)
+
+	if key != "" {
+		vals, ok := query[key]
+		if !ok {
+			return neg
+		}
+
+		values = append(values, vals...)
+	} else {
+		for _, vals := range query {
+			values = append(values, vals...)
 		}
 	}
 
-	return false
+	str := strings.Join(values, ", ")
+
+	found := false
+
+	switch op {
+	case MatchOperatorRegex:
+		if r != nil {
+			found = r.MatchString(str)
+		}
+
+	case MatchOperatorStringEqual:
+		for _, v := range values {
+			if v == val {
+				found = true
+				break
+			}
+		}
+
+	case MatchOperatorEqual,
+		MatchOperatorNotEqual,
+		MatchOperatorLessThan,
+		MatchOperatorGreaterThan,
+		MatchOperatorLessThanOrEqual,
+		MatchOperatorGreaterThanOrEqual:
+
+		for _, v := range values {
+			if compareNumeric(v, val, op) {
+				found = true
+				break
+			}
+		}
+
+	case MatchOperatorDetectSQLi:
+		found = isSQLi(str)
+	}
+
+	if neg {
+		return !found
+	}
+
+	return found
+}
+
+func evaluateTargetHeader(
+	header http.Header,
+	op MatchOperator,
+	key,
+	val string,
+	neg bool,
+	r *regexp.Regexp,
+) bool {
+	values := make([]string, 0)
+
+	if key != "" {
+		values = header.Values(key)
+
+		if len(values) == 0 {
+			return neg
+		}
+	} else {
+		for _, vals := range header {
+			values = append(values, vals...)
+		}
+	}
+
+	str := strings.Join(values, ", ")
+
+	found := false
+
+	switch op {
+	case MatchOperatorRegex:
+		if r != nil {
+			found = r.MatchString(str)
+		}
+
+	case MatchOperatorStringEqual:
+		for _, v := range values {
+			if v == val {
+				found = true
+				break
+			}
+		}
+
+	case MatchOperatorEqual,
+		MatchOperatorNotEqual,
+		MatchOperatorLessThan,
+		MatchOperatorGreaterThan,
+		MatchOperatorLessThanOrEqual,
+		MatchOperatorGreaterThanOrEqual:
+
+		for _, v := range values {
+			if compareNumeric(v, val, op) {
+				found = true
+				break
+			}
+		}
+
+	case MatchOperatorDetectSQLi:
+		found = isSQLi(str)
+	}
+
+	if neg {
+		return !found
+	}
+
+	return found
+}
+
+func evaluateTargetBody(
+	body string,
+	op MatchOperator,
+	val string,
+	neg bool,
+	r *regexp.Regexp,
+) bool {
+	found := false
+
+	switch op {
+	case MatchOperatorRegex:
+		if r != nil {
+			found = r.MatchString(body)
+		}
+
+	case MatchOperatorStringEqual:
+		found = body == val
+
+	case MatchOperatorDetectSQLi:
+		found = isSQLi(body)
+
+	default:
+		return false
+	}
+
+	if neg {
+		return !found
+	}
+
+	return found
+}
+
+func evaluateTargetBodyLength(
+	contentLength int64,
+	op MatchOperator,
+	val string,
+	neg bool,
+	r *regexp.Regexp,
+) bool {
+	cl := strconv.Itoa(int(contentLength))
+
+	found := false
+
+	switch op {
+	case MatchOperatorEqual,
+		MatchOperatorNotEqual,
+		MatchOperatorLessThan,
+		MatchOperatorGreaterThan,
+		MatchOperatorLessThanOrEqual,
+		MatchOperatorGreaterThanOrEqual:
+
+		found = compareNumeric(cl, val, op)
+
+	default:
+		return false
+	}
+
+	if neg {
+		return !found
+	}
+
+	return found
+}
+
+func evaluateTargetMethod(
+	method string,
+	op MatchOperator,
+	val string,
+	neg bool,
+	r *regexp.Regexp,
+) bool {
+	found := false
+
+	switch op {
+	case MatchOperatorRegex:
+		if r != nil {
+			found = r.MatchString(method)
+		}
+
+	case MatchOperatorStringEqual:
+		found = method == val
+
+	default:
+		return false
+	}
+
+	if neg {
+		return !found
+	}
+
+	return found
+}
+
+func evaluateTargetCookie(
+	cookies []*http.Cookie,
+	op MatchOperator,
+	key,
+	val string,
+	neg bool,
+	r *regexp.Regexp,
+) bool {
+	values := make([]string, 0)
+
+	if key != "" {
+		for _, cookie := range cookies {
+			if cookie.Name == key {
+				values = append(values, cookie.Value)
+			}
+		}
+
+		if len(values) == 0 {
+			return neg
+		}
+	} else {
+		for _, cookie := range cookies {
+			values = append(values, cookie.Value)
+		}
+	}
+
+	str := strings.Join(values, ", ")
+
+	found := false
+
+	switch op {
+	case MatchOperatorRegex:
+		if r != nil {
+			found = r.MatchString(str)
+		}
+
+	case MatchOperatorStringEqual:
+		for _, v := range values {
+			if v == val {
+				found = true
+				break
+			}
+		}
+
+	case MatchOperatorEqual,
+		MatchOperatorNotEqual,
+		MatchOperatorLessThan,
+		MatchOperatorGreaterThan,
+		MatchOperatorLessThanOrEqual,
+		MatchOperatorGreaterThanOrEqual:
+
+		for _, v := range values {
+			if compareNumeric(v, val, op) {
+				found = true
+				break
+			}
+		}
+
+	case MatchOperatorDetectSQLi:
+		found = isSQLi(str)
+	}
+
+	if neg {
+		return !found
+	}
+
+	return found
+}
+
+func evaluateTargetCookieName(
+	cookies []*http.Cookie,
+	op MatchOperator,
+	val string,
+	neg bool,
+	r *regexp.Regexp,
+) bool {
+	values := make([]string, 0, len(cookies))
+
+	for _, cookie := range cookies {
+		values = append(values, cookie.Name)
+	}
+
+	str := strings.Join(values, ", ")
+
+	found := false
+
+	switch op {
+	case MatchOperatorRegex:
+		if r != nil {
+			found = r.MatchString(str)
+		}
+
+	case MatchOperatorStringEqual:
+		for _, v := range values {
+			if v == val {
+				found = true
+				break
+			}
+		}
+
+	case MatchOperatorDetectSQLi:
+		found = isSQLi(str)
+
+	default:
+		return false
+	}
+
+	if neg {
+		return !found
+	}
+
+	return found
+}
+
+func getCookies(header http.Header) []*http.Cookie {
+	req := &http.Request{
+		Header: header,
+	}
+
+	return req.Cookies()
+}
+
+func compareNumeric(left, right string, op MatchOperator) bool {
+	l, err := strconv.ParseFloat(left, 64)
+	if err != nil {
+		return false
+	}
+
+	r, err := strconv.ParseFloat(right, 64)
+	if err != nil {
+		return false
+	}
+
+	switch op {
+	case MatchOperatorEqual:
+		return l == r
+
+	case MatchOperatorNotEqual:
+		return l != r
+
+	case MatchOperatorLessThan:
+		return l < r
+
+	case MatchOperatorGreaterThan:
+		return l > r
+
+	case MatchOperatorLessThanOrEqual:
+		return l <= r
+
+	case MatchOperatorGreaterThanOrEqual:
+		return l >= r
+
+	default:
+		return false
+	}
+}
+
+func isSQLi(v string) bool {
+	result, _ := libinjection.IsSQLi(v)
+
+	return result
 }

@@ -1,0 +1,513 @@
+/* =========================================
+   Rules Page
+========================================= */
+
+.rules-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+
+  overflow: hidden;
+}
+
+.rules-page-header {
+  flex-shrink: 0;
+}
+
+.rules-page-header h2,
+.rules-section h3,
+.rules-list-item h4 {
+  margin: 0;
+}
+
+.rules-page-header p,
+.rules-list-item p {
+  margin: 0.4rem 0 0;
+  color: var(--muted-text-color);
+  font-size: 0.875rem;
+}
+
+/* =========================================
+   Sections
+========================================= */
+
+.rules-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+/* The last section fills all remaining space. */
+
+.rules-page > .rules-section:last-child {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* =========================================
+   Navigation
+========================================= */
+
+.rules-section > a {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+
+  padding: 0.7rem 1rem;
+
+  color: var(--text-color);
+  background: var(--sidebar-background);
+
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.rules-section > a:hover {
+  background: var(--hover-background);
+}
+
+.rules-section > a:focus-visible {
+  outline: 2px solid var(--text-color);
+  outline-offset: 2px;
+}
+
+/* =========================================
+   Loaded Rules Header
+========================================= */
+
+.rules-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 1rem;
+}
+
+.rules-count {
+  color: var(--muted-text-color);
+  font-size: 0.875rem;
+}
+
+/* =========================================
+   Rules Workspace
+========================================= */
+
+.rules-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 1rem;
+
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+
+  overflow: hidden;
+}
+
+.rules-workspace.is-open {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+}
+
+/* =========================================
+   Rules List
+========================================= */
+
+.rules-list {
+  min-width: 0;
+  min-height: 0;
+
+  background: var(--background);
+
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.rules-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  width: 100%;
+  padding: 1rem;
+
+  color: var(--text-color);
+  background: var(--background);
+
+  border: 1px solid var(--border-color);
+
+  font: inherit;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+/* .rules-list-item + .rules-list-item { */
+/*   border-bottom: 1px solid var(--border-color); */
+/* } */
+
+.rules-list-item:hover {
+  background: var(--hover-background);
+}
+
+.rules-list-item.is-selected {
+  background: var(--hover-background);
+  box-shadow: inset 3px 0 0 var(--text-color);
+}
+
+.rules-list-item:focus-visible {
+  outline: 2px solid var(--text-color);
+  outline-offset: -2px;
+}
+
+.rules-list-info {
+  min-width: 0;
+}
+
+.rules-list-item h4 {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.rules-list-scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rules-scope {
+  display: inline-block;
+  margin-top: 0.5rem;
+
+  color: var(--muted-text-color);
+  font-size: 0.75rem;
+}
+
+/* =========================================
+   Rule Status
+========================================= */
+
+.rules-status {
+  flex-shrink: 0;
+
+  padding: 0.3rem 0.6rem;
+
+  border-radius: 0.375rem;
+
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.rules-status-enabled {
+  color: #198754;
+  background: rgba(25, 135, 84, 0.12);
+}
+
+.rules-status-disabled {
+  color: var(--muted-text-color);
+  background: var(--hover-background);
+}
+
+/* =========================================
+   Empty State
+========================================= */
+
+.rules-empty {
+  padding: 2rem;
+  text-align: center;
+}
+
+.rules-empty p {
+  margin: 0 0 0.75rem;
+  color: var(--muted-text-color);
+}
+
+/* =========================================
+   Details Column
+========================================= */
+
+.rules-details {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+
+  background: var(--sidebar-background);
+
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.rules-details[hidden],
+.rules-detail[hidden] {
+  display: none;
+}
+
+/* =========================================
+   Details Header
+========================================= */
+
+.rules-details-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  padding: 1rem;
+
+  background: var(--sidebar-background);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.rules-details-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.rules-details-close {
+  flex-shrink: 0;
+
+  padding: 0;
+
+  color: var(--muted-text-color);
+  background: transparent;
+
+  border: none;
+
+  font: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.rules-details-close:hover {
+  color: var(--text-color);
+}
+
+.rules-details-close:focus-visible {
+  outline: 2px solid var(--text-color);
+  outline-offset: 3px;
+}
+
+.rules-detail {
+  min-width: 0;
+  padding: 1rem;
+}
+
+/* =========================================
+   Rule Inspector
+========================================= */
+
+.rule-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+
+  min-width: 0;
+}
+
+.rule-inspector-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rule-inspector-summary h4 {
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.rule-inspector-badges,
+.rule-inspector-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rule-inspector-badge {
+  display: inline-block;
+
+  padding: 0.25rem 0.6rem;
+
+  color: var(--muted-text-color);
+  background: var(--hover-background);
+
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+
+  font-size: 0.75rem;
+}
+
+/* =========================================
+   Inspector Sections
+========================================= */
+
+.rule-inspector-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.rule-inspector-section h5 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.rule-inspector-section p {
+  margin: 0;
+
+  font-size: 0.875rem;
+  line-height: 1.5;
+
+  overflow-wrap: anywhere;
+}
+
+.rule-inspector-muted {
+  color: var(--muted-text-color);
+}
+
+/* =========================================
+   Key / Value Fields
+========================================= */
+
+.rule-inspector-field {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+
+  font-size: 0.875rem;
+}
+
+.rule-inspector-field > span,
+.rule-inspector-block > span {
+  color: var(--muted-text-color);
+}
+
+.rule-inspector-field strong,
+.rule-inspector-field code {
+  min-width: 0;
+
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.rule-inspector-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  min-width: 0;
+  font-size: 0.875rem;
+}
+
+/* =========================================
+   Match Conditions
+========================================= */
+
+.rule-inspector-conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rule-condition {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+
+  min-width: 0;
+  padding: 1rem;
+
+  background: var(--background);
+
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+}
+
+.rule-condition-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  font-size: 0.875rem;
+}
+
+.rule-condition-negated {
+  color: #dc3545;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* =========================================
+   Long Regex Patterns / Values
+========================================= */
+
+.rule-condition-value {
+  margin: 0;
+  padding: 0.75rem;
+
+  max-height: 200px;
+  overflow: auto;
+
+  color: var(--text-color);
+  background: var(--sidebar-background);
+
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+
+  font-size: 0.8rem;
+  line-height: 1.5;
+
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* =========================================
+   Responsive Layout
+========================================= */
+
+@media (max-width: 900px) {
+  .rules-workspace.is-open {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .rules-details {
+    height: auto;
+  }
+}
