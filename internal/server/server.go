@@ -1,3 +1,4 @@
+// Package server handles the application runtime
 package server
 
 import (
@@ -127,7 +128,7 @@ func RunServer(ctx context.Context, background bool) error {
 		http.StripPrefix("/static/", fileServer),
 	)
 
-	dashboardHandler := dashboard.NewHandler()
+	dashboardHandler := dashboard.NewHandler(rs)
 
 	dashboardHandler.RegisterRoutes(mux)
 

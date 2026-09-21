@@ -3,6 +3,11 @@ package crs
 import (
 	"api-observer/internal/audit"
 	"fmt"
+	"regexp"
+	"sort"
+	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type TranslationResults struct {
@@ -15,9 +20,6 @@ type TranslationResult struct {
 	Error    string      `json:"error,omitempty" yaml:"error,omitempty"`
 }
 
-// TranslateRules translates an entire collection of CRS rules.
-// Individual translation failures are recorded in the results
-// instead of stopping the entire import.
 func TranslateRules(source []CRSRule) (TranslationResults, error) {
 	results := TranslationResults{
 		Rules: make(map[string]TranslationResult),
@@ -43,9 +45,6 @@ func TranslateRules(source []CRSRule) (TranslationResults, error) {
 	return results, nil
 }
 
-// translateRuleChain translates a rule and its chained children.
-// A failed child invalidates its parent, but unrelated rules
-// can still be translated.
 func translateRuleChain(
 	src CRSRule,
 	id string,
@@ -53,30 +52,29 @@ func translateRuleChain(
 	results *TranslationResults,
 ) error {
 	if _, exists := results.Rules[id]; exists {
-		return fmt.Errorf("duplicate translated rule ID %q", id)
+		return fmt.Errorf(
+			"duplicate translated rule ID %q",
+			id,
+		)
 	}
 
-	// Reserve the ID before processing the rule.
 	results.Rules[id] = TranslationResult{}
 
-	// CRS chain children may inherit their parent's phase.
 	if src.Actions.Phase == 0 {
 		src.Actions.Phase = inheritedPhase
 	}
 
-	// Give unnamed rules an identifier for their descriptions.
 	if src.Actions.ID == "" {
 		src.Actions.ID = id
 	}
 
 	translated, translateErr := TranslateRule(src)
 
-	// Process the child even if the parent could not be
-	// translated, so its diagnostics are still available.
 	var childID string
 
 	if src.ChainedRule != nil {
 		child := *src.ChainedRule
+
 		childID = id + "-chain"
 
 		if child.Actions.ID != "" {
@@ -96,45 +94,49 @@ func translateRuleChain(
 		}
 	}
 
-	// Record individual translation errors.
 	if translateErr != nil {
 		results.Rules[id] = TranslationResult{
 			Error: translateErr.Error(),
 		}
+
 		return nil
 	}
 
-	// A rule must have at least one usable condition.
 	if translated.Rule == nil ||
 		len(translated.Rule.Match.Conditions) == 0 {
 
 		results.Rules[id] = TranslationResult{
-			Warnings: translated.Warnings,
+			Warnings: uniqueWarnings(translated.Warnings),
 			Error:    "no supported match conditions",
 		}
 
 		return nil
 	}
 
-	// A parent cannot safely run if its chained child failed.
 	if childID != "" {
 		childResult := results.Rules[childID]
 
-		if childResult.Rule == nil {
+		if childResult.Rule == nil ||
+			childResult.Error != "" {
+
+			childError := childResult.Error
+
+			if childError == "" {
+				childError = "no usable rule produced"
+			}
+
 			results.Rules[id] = TranslationResult{
-				Warnings: translated.Warnings,
+				Warnings: uniqueWarnings(translated.Warnings),
 				Error: fmt.Sprintf(
 					"chained rule %s could not be translated: %s",
 					childID,
-					childResult.Error,
+					childError,
 				),
 			}
 
 			return nil
 		}
 
-		// Only assign a chain reference after confirming
-		// that the child translated successfully.
 		translated.Rule.Chain = childID
 	}
 
@@ -143,8 +145,6 @@ func translateRuleChain(
 	return nil
 }
 
-// TranslateRule translates a single CRS rule into an
-// API Observer rule and collects unsupported-target warnings.
 func TranslateRule(src CRSRule) (TranslationResult, error) {
 	result := TranslationResult{
 		Rule: &audit.Rule{
@@ -194,16 +194,308 @@ func TranslateRule(src CRSRule) (TranslationResult, error) {
 		)
 	}
 
-	result.Rule.Finding = translateActionsToFinding(src)
+	result.Warnings = uniqueWarnings(result.Warnings)
 
-	// Chain references are assigned by translateRuleChain(),
-	// which knows whether the child translated successfully.
+	result.Rule.Finding = translateActionsToFinding(src)
 
 	return result, nil
 }
 
-// Only returns one RuleScope based on CRS Rule behavior.
-// A SecRule executes during a single phase.
+func uniqueWarnings(warnings []string) []string {
+	if len(warnings) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(warnings))
+	result := make([]string, 0, len(warnings))
+
+	for _, warning := range warnings {
+		warning = strings.TrimSpace(warning)
+
+		if warning == "" {
+			continue
+		}
+
+		if _, exists := seen[warning]; exists {
+			continue
+		}
+
+		seen[warning] = struct{}{}
+		result = append(result, warning)
+	}
+
+	return result
+}
+
+func (results TranslationResults) RuleSetYAML() ([]byte, error) {
+	accepted := make(map[string]*audit.Rule)
+	rejected := make(map[string]TranslationResult)
+
+	for id, result := range results.Rules {
+		result.Warnings = uniqueWarnings(result.Warnings)
+
+		if result.Error != "" {
+			rejected[id] = result
+			continue
+		}
+
+		if result.Rule == nil {
+			result.Error = "translation produced no rule"
+			rejected[id] = result
+			continue
+		}
+
+		// Validate the rule before exporting it.
+		if err := validateTranslatedRule(result.Rule); err != nil {
+			result.Error = err.Error()
+			rejected[id] = result
+			continue
+		}
+
+		accepted[id] = result.Rule
+	}
+
+	for {
+		removed := false
+
+		for id, rule := range accepted {
+			if rule.Chain == "" {
+				continue
+			}
+
+			if _, exists := accepted[rule.Chain]; exists {
+				continue
+			}
+
+			result := results.Rules[id]
+
+			result.Warnings = uniqueWarnings(result.Warnings)
+
+			result.Error = fmt.Sprintf(
+				"chained rule %q is not available",
+				rule.Chain,
+			)
+
+			rejected[id] = result
+
+			delete(accepted, id)
+
+			removed = true
+		}
+
+		if !removed {
+			break
+		}
+	}
+
+	acceptedIDs := make([]string, 0, len(accepted))
+	rejectedIDs := make([]string, 0, len(rejected))
+
+	for id := range accepted {
+		acceptedIDs = append(acceptedIDs, id)
+	}
+
+	for id := range rejected {
+		rejectedIDs = append(rejectedIDs, id)
+	}
+
+	sort.Strings(acceptedIDs)
+	sort.Strings(rejectedIDs)
+
+	var output strings.Builder
+
+	if len(acceptedIDs) == 0 {
+		output.WriteString("rules: {}\n")
+	} else {
+		output.WriteString("rules:\n")
+	}
+
+	for _, id := range acceptedIDs {
+		result := results.Rules[id]
+
+		for _, warning := range uniqueWarnings(result.Warnings) {
+			writeRuleComment(
+				&output,
+				"  # WARNING: ",
+				warning,
+			)
+		}
+
+		key, err := yaml.Marshal(id)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"failed to marshal rule ID %q: %w",
+				id,
+				err,
+			)
+		}
+
+		output.WriteString("  ")
+		output.WriteString(strings.TrimSpace(string(key)))
+		output.WriteString(":\n")
+
+		ruleData, err := yaml.Marshal(accepted[id])
+		if err != nil {
+			return nil, fmt.Errorf(
+				"failed to marshal rule %q: %w",
+				id,
+				err,
+			)
+		}
+
+		writeIndentedYAML(
+			&output,
+			ruleData,
+			"    ",
+		)
+	}
+
+	if _, err := audit.ParseRuleSet(output.String()); err != nil {
+		return nil, fmt.Errorf(
+			"generated ruleset failed validation: %w",
+			err,
+		)
+	}
+
+	// Write failed rules at the end.
+	if len(rejectedIDs) > 0 {
+		output.WriteString("\n")
+
+		output.WriteString(
+			"# ========================================\n",
+		)
+
+		output.WriteString(
+			"# Excluded CRS Rules\n",
+		)
+
+		output.WriteString(
+			"# ========================================\n",
+		)
+
+		for _, id := range rejectedIDs {
+			result := rejected[id]
+
+			result.Warnings = uniqueWarnings(result.Warnings)
+
+			output.WriteString("\n")
+
+			key, err := yaml.Marshal(id)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to marshal excluded rule ID %q: %w",
+					id,
+					err,
+				)
+			}
+
+			output.WriteString("#   ")
+			output.WriteString(strings.TrimSpace(string(key)))
+			output.WriteString(":\n")
+
+			reportData, err := yaml.Marshal(result)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to marshal excluded rule %q: %w",
+					id,
+					err,
+				)
+			}
+
+			writeCommentedYAML(
+				&output,
+				reportData,
+				"    ",
+			)
+		}
+	}
+
+	return []byte(output.String()), nil
+}
+
+func validateTranslatedRule(rule *audit.Rule) error {
+	if rule == nil {
+		return fmt.Errorf("rule is nil")
+	}
+
+	if len(rule.Scope) == 0 {
+		rule.Scope.DefaultConfiguration()
+	}
+
+	if err := rule.Scope.Validate(); err != nil {
+		return err
+	}
+
+	if err := rule.Match.Validate(); err != nil {
+		return err
+	}
+
+	for i, condition := range rule.Match.Conditions {
+		if condition.Operator != audit.MatchOperatorRegex {
+			continue
+		}
+
+		if _, err := regexp.Compile(condition.Value); err != nil {
+			return fmt.Errorf(
+				"condition %d has invalid regex: %w",
+				i+1,
+				err,
+			)
+		}
+	}
+
+	return nil
+}
+
+func writeRuleComment(
+	output *strings.Builder,
+	prefix string,
+	value string,
+) {
+	for _, line := range strings.Split(value, "\n") {
+		output.WriteString(prefix)
+		output.WriteString(line)
+		output.WriteString("\n")
+	}
+}
+
+func writeIndentedYAML(
+	output *strings.Builder,
+	data []byte,
+	indent string,
+) {
+	content := strings.TrimSuffix(string(data), "\n")
+
+	if content == "" {
+		return
+	}
+
+	for _, line := range strings.Split(content, "\n") {
+		output.WriteString(indent)
+		output.WriteString(line)
+		output.WriteString("\n")
+	}
+}
+
+func writeCommentedYAML(
+	output *strings.Builder,
+	data []byte,
+	indent string,
+) {
+	content := strings.TrimSuffix(string(data), "\n")
+
+	if content == "" {
+		return
+	}
+
+	for _, line := range strings.Split(content, "\n") {
+		output.WriteString("# ")
+		output.WriteString(indent)
+		output.WriteString(line)
+		output.WriteString("\n")
+	}
+}
+
 func translatePhaseToScope(
 	phase int,
 ) (audit.RuleScope, error) {

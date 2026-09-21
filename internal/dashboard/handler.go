@@ -1,16 +1,20 @@
 package dashboard
 
 import (
+	"api-observer/internal/audit"
 	"api-observer/internal/dashboard/views/utils"
 	"log"
 	"net/http"
 )
 
 type Handler struct {
+	RuleSet *audit.RuleSet
 }
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(rs *audit.RuleSet) *Handler {
+	return &Handler{
+		RuleSet: rs,
+	}
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {

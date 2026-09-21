@@ -1,20 +1,47 @@
 package dashboard
 
 import (
+	"api-observer/internal/audit"
 	"api-observer/internal/crs"
 	"api-observer/internal/dashboard/views/rules"
 	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"gopkg.in/yaml.v3"
+	"sort"
 )
 
 func (h *Handler) RulesPage(w http.ResponseWriter, r *http.Request) {
-	if err := rules.RulesPage("Rule Page").Render(r.Context(), w); err != nil {
+	ruleItems := ruleListItems(h.RuleSet)
+
+	if err := rules.RulesPage("Rule Page", ruleItems).Render(r.Context(), w); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func ruleListItems(rs *audit.RuleSet) []rules.RuleListItem {
+	items := make([]rules.RuleListItem, 0)
+
+	if rs == nil {
+		return items
+	}
+
+	for id, rule := range rs.Rules {
+		if rule == nil {
+			continue
+		}
+
+		items = append(items, rules.RuleListItem{
+			ID:   id,
+			Rule: rule,
+		})
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].ID < items[j].ID
+	})
+
+	return items
 }
 
 func (h *Handler) RulesImportPage(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +115,7 @@ func (h *Handler) RulesImportTranslate(
 		}
 
 		// Serialize the translation results.
-		data, err := yaml.Marshal(results)
+		data, err := results.RuleSetYAML()
 		if err != nil {
 			renderToast(
 				w,
