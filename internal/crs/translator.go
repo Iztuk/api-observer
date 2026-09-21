@@ -568,7 +568,7 @@ func translateTargetMatchConditions(
 				argsToMatchCondition(target)...,
 			)
 
-		case RequestBody:
+		case RequestBody, ResponseBody:
 			conditions = append(
 				conditions,
 				audit.MatchCondition{
@@ -601,7 +601,7 @@ func translateTargetMatchConditions(
 				},
 			)
 
-		case RequestHeaders, RequestHeadersNames:
+		case RequestHeaders, RequestHeadersNames, ResponseHeaders, ResponseHeadersNames:
 			conditions = append(
 				conditions,
 				audit.MatchCondition{
@@ -615,6 +615,15 @@ func translateTargetMatchConditions(
 				conditions,
 				audit.MatchCondition{
 					Target: audit.RuleTargetMethod,
+				},
+			)
+
+		case ResponseContentType:
+			conditions = append(
+				conditions,
+				audit.MatchCondition{
+					Target: audit.RuleTargetHeader,
+					Key:    "Content-Type",
 				},
 			)
 

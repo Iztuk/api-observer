@@ -33,6 +33,16 @@ const (
 	RequestFilename Variable = "REQUEST_FILENAME"
 	RequestBasename Variable = "REQUEST_BASENAME"
 
+	ResponseBody          Variable = "RESPONSE_BODY"
+	ResponseContentLength Variable = "RESPONSE_CONTENT_LENGTH"
+	ResponseContentType   Variable = "RESPONSE_CONTENT_TYPE"
+
+	ResponseHeaders      Variable = "RESPONSE_HEADERS"
+	ResponseHeadersNames Variable = "RESPONSE_HEADERS_NAMES"
+
+	ResponseProtocol Variable = "RESPONSE_PROTOCOL"
+	ResponseStatus   Variable = "RESPONSE_STATUS"
+
 	XML Variable = "XML"
 
 	TX               Variable = "TX"
@@ -44,11 +54,10 @@ const (
 
 func (v Variable) IsValid() bool {
 	switch v {
-	case Args, ArgsNames, RequestBody, RequestBodyLength,
-		RequestCookies, RequestCookiesNames, RequestHeaders,
-		RequestHeadersNames, RequestMethod, RequestFilename,
-		RequestBasename, XML, TX, MatchedVar, MatchedVarName,
-		MatchedVars, MatchedVarsNames:
+	case Args, ArgsNames,
+		RequestBody, RequestBodyLength, RequestCookies, RequestCookiesNames, RequestHeaders, RequestHeadersNames, RequestMethod, RequestFilename, RequestBasename,
+		ResponseBody, ResponseContentLength, ResponseContentType, ResponseHeaders, ResponseHeadersNames,
+		XML, TX, MatchedVar, MatchedVarName, MatchedVars, MatchedVarsNames:
 		return true
 	default:
 		return false
@@ -104,6 +113,7 @@ type Actions struct {
 	// Standalone actions
 	Block      bool
 	Pass       bool
+	Log        bool
 	NoLog      bool
 	Capture    bool
 	MultiMatch bool
@@ -121,6 +131,9 @@ var standaloneActions = map[string]func(*Actions){
 	},
 	"pass": func(a *Actions) {
 		a.Pass = true
+	},
+	"log": func(a *Actions) {
+		a.Log = true
 	},
 	"nolog": func(a *Actions) {
 		a.NoLog = true
