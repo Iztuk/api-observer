@@ -1,0 +1,123 @@
+package explorer
+
+import "api-observer/internal/dashboard/views"
+
+templ ExplorerPage(title, query, start, end string) {
+	@views.Layout(title) {
+		<link rel="stylesheet" href="/static/css/explorer.css"/>
+		@ExplorerPageContent(query, start, end)
+	}
+}
+
+templ ExplorerPageContent(query, start, end string) {
+	<div class="explorer-page">
+		<!-- Search and Filters -->
+		<form
+			class="explorer-form"
+			action="/"
+			method="get"
+		>
+			<div class="explorer-search">
+				<input
+					type="search"
+					id="explorer-query"
+					name="query"
+					value={ query }
+					placeholder="Search logs..."
+					aria-label="Search logs"
+				/>
+				<button
+					type="submit"
+					class="explorer-search-button"
+					aria-label="Search"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="20"
+						height="20"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<circle cx="11" cy="11" r="8"></circle>
+						<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+					</svg>
+					<span>Search</span>
+				</button>
+			</div>
+			<!-- Advanced Settings -->
+			<details class="explorer-advanced">
+				<summary>
+					<span>Advanced Settings</span>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="m6 9 6 6 6-6"></path>
+					</svg>
+				</summary>
+				<div class="explorer-filters">
+					<div class="explorer-filter">
+						<label for="explorer-start">
+							Start Date
+						</label>
+						<input
+							type="datetime-local"
+							id="explorer-start"
+							name="start"
+							value={ start }
+						/>
+					</div>
+					<div class="explorer-filter">
+						<label for="explorer-end">
+							End Date
+						</label>
+						<input
+							type="datetime-local"
+							id="explorer-end"
+							name="end"
+							value={ end }
+						/>
+					</div>
+				</div>
+			</details>
+		</form>
+		<!-- Results -->
+		<section class="explorer-results">
+			<div class="explorer-table-container">
+				<table class="explorer-table">
+					<thead>
+						<tr>
+							<th>Timestamp</th>
+							<th>Host</th>
+							<th>Type</th>
+							<th>Method</th>
+							<th>Path</th>
+							<th>Status</th>
+							<th>Findings</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td colspan="7" class="explorer-empty">
+								End of logs
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+	</div>
+}

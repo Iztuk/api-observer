@@ -18,11 +18,11 @@ func NewHandler(rs *audit.RuleSet) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/", h.LogExplorerPage)
+	mux.HandleFunc("GET /", h.ExplorerPage)
 
-	mux.HandleFunc("/rules", h.RulesPage)
-	mux.HandleFunc("/rules/import", h.RulesImportPage)
-	mux.HandleFunc("/rules/import/translate", h.RulesImportTranslate)
+	mux.HandleFunc("GET /rules", h.RulesPage)
+	mux.HandleFunc("GET /rules/import", h.RulesImportPage)
+	mux.HandleFunc("GET /rules/import/translate", h.RulesImportTranslate)
 }
 
 func renderToast(

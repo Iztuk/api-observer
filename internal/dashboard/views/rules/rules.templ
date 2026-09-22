@@ -15,6 +15,7 @@ templ RulesPage(title string, rules []RuleListItem) {
 	@views.Layout(title) {
 		<link rel="stylesheet" href="/static/css/rules.css"/>
 		@RulesPageContent(rules)
+		<script type="module" src="/static/js/rules.js"></script>
 	}
 }
 
@@ -26,9 +27,9 @@ templ RulesPageContent(rules []RuleListItem) {
 		</header>
 		<!-- Navigation -->
 		<section class="rules-section">
-				<a href="/rules/import">
-					Import Rules
-				</a>
+			<a href="/rules/import">
+				Import Rules
+			</a>
 		</section>
 		<!-- Loaded Rules -->
 		<section class="rules-section">
@@ -117,7 +118,6 @@ templ RulesPageContent(rules []RuleListItem) {
 			</div>
 		</section>
 	</div>
-	<script type="module" src="/static/js/rules.js"></script>
 }
 
 // RuleDetails displays the complete rule as structured information.

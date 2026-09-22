@@ -6,6 +6,9 @@ templ RulesImportPage(title string) {
 	@views.Layout(title) {
 		<link rel="stylesheet" href="/static/css/rules-import.css"/>
 		@RulesImportPageContent()
+		<link rel="stylesheet" href="/static/js/monaco.css"/>
+		<script type="module" src="/static/js/monaco.js"></script>
+		<script type="module" src="/static/js/rule-imports.js"></script>
 	}
 }
 
@@ -33,9 +36,6 @@ templ RulesImportPageContent() {
 			</button>
 		</footer>
 	</div>
-	<link rel="stylesheet" href="/static/js/monaco.css"/>
-	<script type="module" src="/static/js/monaco.js"></script>
-	<script type="module" src="/static/js/rule-imports.js"></script>
 }
 
 templ RuleImportEditor(id, language string) {
