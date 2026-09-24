@@ -48,10 +48,9 @@ func (m *NodeManager) Add(
 	}
 
 	node := &Node{
-		Name:   name,
-		Addr:   addr,
-		Conn:   conn,
-		Client: queryv1.NewLogServiceClient(conn),
+		Name: name,
+		Addr: addr,
+		Conn: conn, Client: queryv1.NewLogServiceClient(conn),
 	}
 
 	m.mu.Lock()
@@ -115,4 +114,26 @@ func (m *NodeManager) Close() error {
 	}
 
 	return firstErr
+}
+
+func (m *NodeManager) Remove(name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	node, ok := m.nodes[name]
+	if !ok {
+		return fmt.Errorf("node %q not found", name)
+	}
+
+	delete(m.nodes, name)
+
+	if err := node.Conn.Close(); err != nil {
+		return fmt.Errorf(
+			"failed to close node %q: %w",
+			name,
+			err,
+		)
+	}
+
+	return nil
 }

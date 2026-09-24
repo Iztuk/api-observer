@@ -19,6 +19,13 @@ type Config struct {
 	DashboardPort string `yaml:"dashboard_port"`
 	QueueSize     int    `yaml:"queue_size"`
 	WorkerCount   int    `yaml:"worker_count"`
+
+	Nodes []NodeConfig `yaml:"nodes"`
+}
+
+type NodeConfig struct {
+	Name string `yaml:"name"`
+	Addr string `yaml:"addr"`
 }
 
 func LoadConfigurationFile() (Config, error) {
@@ -137,6 +144,8 @@ func DefaultConfig() (Config, error) {
 		DashboardPort: ":8080",
 		QueueSize:     1000,
 		WorkerCount:   5,
+
+		Nodes: make([]NodeConfig, 0),
 	}, nil
 }
 

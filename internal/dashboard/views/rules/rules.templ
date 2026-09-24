@@ -25,13 +25,11 @@ templ RulesPageContent(rules []RuleListItem) {
 			<h2>Rules</h2>
 			<p>Manage and review the rules used by API Observer.</p>
 		</header>
-		<!-- Navigation -->
 		<section class="rules-section">
 			<a href="/rules/import">
 				Import Rules
 			</a>
 		</section>
-		<!-- Loaded Rules -->
 		<section class="rules-section">
 			<div class="rules-list-header">
 				<h3>Loaded Rules</h3>
@@ -45,7 +43,6 @@ templ RulesPageContent(rules []RuleListItem) {
 					if len(rules) == 0 {
 						<div class="rules-empty">
 							<p>No rules are currently loaded.</p>
-							<a href="/rules/import">Import rules</a>
 						</div>
 					} else {
 						for i, item := range rules {

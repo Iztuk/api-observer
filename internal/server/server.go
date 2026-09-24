@@ -6,6 +6,7 @@ import (
 	"api-observer/internal/config"
 	"api-observer/internal/dashboard"
 	"api-observer/internal/ingest"
+	"api-observer/internal/nodes"
 	ingestv1 "api-observer/proto/ingest/v1"
 
 	"context"
@@ -128,7 +129,15 @@ func RunServer(ctx context.Context, background bool) error {
 		http.StripPrefix("/static/", fileServer),
 	)
 
-	dashboardHandler := dashboard.NewHandler(rs)
+	nm := nodes.NewNodeManager()
+
+	for _, node := range cfg.Nodes {
+		if err := nm.Add(node.Name, node.Addr); err != nil {
+			return fmt.Errorf("failed to add node %q: %w", node.Name, err)
+		}
+	}
+
+	dashboardHandler := dashboard.NewHandler(rs, nm)
 	dashboardHandler.RegisterRoutes(mux)
 
 	httpServer := &http.Server{
