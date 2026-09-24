@@ -17,13 +17,14 @@ type Finding struct {
 	Severity string
 	Tags     []string
 
-	Metadata  Metadata
-	Timestamp string
+	Metadata    Metadata
+	ProcessedAt string
 }
 
 type Metadata struct {
 	RequestID string
 	Source    string
+	Timestamp string
 }
 
 type Job struct {

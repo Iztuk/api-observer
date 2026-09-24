@@ -1,27 +1,35 @@
 syntax = "proto3";
 
-package apiobserver.ingest.v1;
+package apiobserver.query.v1;
 
-option go_package = "api-observer/proto/ingest/v1;ingestv1";
+option go_package = "api-observer/proto/query/v1;queryv1";
 
 import "google/protobuf/timestamp.proto";
 
-service IngestService {
-  rpc Ingest(stream Job) returns (stream IngestAck);
+service LogService {
+  rpc Query(LogParams) returns (stream Log);
 }
 
-message Job {
+message LogParams {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp end_date = 2;
+
+  int64 cursor = 3;
+}
+
+message Log {
   string id = 1;
 
-  JobType type = 2;
-  Request request = 3;
-  Response response = 4;
+  oneof event {
+    Request request = 2;
+    Response response = 3;
+  }
 }
 
-enum JobType {
-  JOB_TYPE_UNSPECIFIED = 0;
-  JOB_TYPE_REQUEST = 1;
-  JOB_TYPE_RESPONSE = 2;
+enum LogType {
+  LOG_TYPE_UNSPECIFIED = 0;
+  LOG_TYPE_REQUEST = 1;
+  LOG_TYPE_RESPONSE = 2;
 }
 
 message Metadata {
@@ -49,17 +57,4 @@ message Response {
   string body = 3;
   int64 content_length = 4;
   Metadata metadata = 5;
-}
-
-enum IngestStatus {
-  INGEST_STATUS_UNSPECIFIED = 0;
-  INGEST_STATUS_ACCEPTED = 1;
-  INGEST_STATUS_REJECTED = 2;
-}
-
-message IngestAck {
-  string job_id = 1;
-  IngestStatus status = 2;
-  string message = 3;
-  bool retryable = 4;
 }

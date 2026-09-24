@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.34.1
-// source: proto/ingest/v1/ingest.proto
+// source: ingest.proto
 
 package ingestv1
 
@@ -111,5 +111,5 @@ var IngestService_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "proto/ingest/v1/ingest.proto",
+	Metadata: "ingest.proto",
 }

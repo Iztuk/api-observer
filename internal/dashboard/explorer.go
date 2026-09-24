@@ -16,3 +16,7 @@ func (h *Handler) ExplorerPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+
+func (h *Handler) ExplorerLogs(w http.ResponseWriter, r *http.Request) {
+
+}

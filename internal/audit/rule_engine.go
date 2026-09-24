@@ -38,7 +38,7 @@ func (rs *RuleSet) Evaluate(j Job) ([]Finding, error) {
 					RequestID: reqID,
 					Source:    src,
 				},
-				Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+				ProcessedAt: time.Now().UTC().Format(time.RFC3339Nano),
 			})
 		}
 	}

@@ -2,13 +2,14 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.1
-// source: proto/ingest/v1/ingest.proto
+// source: ingest.proto
 
 package ingestv1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -54,11 +55,11 @@ func (x JobType) String() string {
 }
 
 func (JobType) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_ingest_v1_ingest_proto_enumTypes[0].Descriptor()
+	return file_ingest_proto_enumTypes[0].Descriptor()
 }
 
 func (JobType) Type() protoreflect.EnumType {
-	return &file_proto_ingest_v1_ingest_proto_enumTypes[0]
+	return &file_ingest_proto_enumTypes[0]
 }
 
 func (x JobType) Number() protoreflect.EnumNumber {
@@ -67,7 +68,7 @@ func (x JobType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use JobType.Descriptor instead.
 func (JobType) EnumDescriptor() ([]byte, []int) {
-	return file_proto_ingest_v1_ingest_proto_rawDescGZIP(), []int{0}
+	return file_ingest_proto_rawDescGZIP(), []int{0}
 }
 
 type IngestStatus int32
@@ -103,11 +104,11 @@ func (x IngestStatus) String() string {
 }
 
 func (IngestStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_ingest_v1_ingest_proto_enumTypes[1].Descriptor()
+	return file_ingest_proto_enumTypes[1].Descriptor()
 }
 
 func (IngestStatus) Type() protoreflect.EnumType {
-	return &file_proto_ingest_v1_ingest_proto_enumTypes[1]
+	return &file_ingest_proto_enumTypes[1]
 }
 
 func (x IngestStatus) Number() protoreflect.EnumNumber {
@@ -116,7 +117,7 @@ func (x IngestStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use IngestStatus.Descriptor instead.
 func (IngestStatus) EnumDescriptor() ([]byte, []int) {
-	return file_proto_ingest_v1_ingest_proto_rawDescGZIP(), []int{1}
+	return file_ingest_proto_rawDescGZIP(), []int{1}
 }
 
 type Job struct {
@@ -131,7 +132,7 @@ type Job struct {
 
 func (x *Job) Reset() {
 	*x = Job{}
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[0]
+	mi := &file_ingest_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -143,7 +144,7 @@ func (x *Job) String() string {
 func (*Job) ProtoMessage() {}
 
 func (x *Job) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[0]
+	mi := &file_ingest_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -156,7 +157,7 @@ func (x *Job) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Job.ProtoReflect.Descriptor instead.
 func (*Job) Descriptor() ([]byte, []int) {
-	return file_proto_ingest_v1_ingest_proto_rawDescGZIP(), []int{0}
+	return file_ingest_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Job) GetId() string {
@@ -191,13 +192,14 @@ type Metadata struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	Source        string                 `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Metadata) Reset() {
 	*x = Metadata{}
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[1]
+	mi := &file_ingest_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -209,7 +211,7 @@ func (x *Metadata) String() string {
 func (*Metadata) ProtoMessage() {}
 
 func (x *Metadata) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[1]
+	mi := &file_ingest_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -222,7 +224,7 @@ func (x *Metadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Metadata.ProtoReflect.Descriptor instead.
 func (*Metadata) Descriptor() ([]byte, []int) {
-	return file_proto_ingest_v1_ingest_proto_rawDescGZIP(), []int{1}
+	return file_ingest_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Metadata) GetRequestId() string {
@@ -239,6 +241,13 @@ func (x *Metadata) GetSource() string {
 	return ""
 }
 
+func (x *Metadata) GetTimestamp() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Timestamp
+	}
+	return nil
+}
+
 type HeaderValues struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Values        []string               `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
@@ -248,7 +257,7 @@ type HeaderValues struct {
 
 func (x *HeaderValues) Reset() {
 	*x = HeaderValues{}
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[2]
+	mi := &file_ingest_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -260,7 +269,7 @@ func (x *HeaderValues) String() string {
 func (*HeaderValues) ProtoMessage() {}
 
 func (x *HeaderValues) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[2]
+	mi := &file_ingest_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -273,7 +282,7 @@ func (x *HeaderValues) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeaderValues.ProtoReflect.Descriptor instead.
 func (*HeaderValues) Descriptor() ([]byte, []int) {
-	return file_proto_ingest_v1_ingest_proto_rawDescGZIP(), []int{2}
+	return file_ingest_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *HeaderValues) GetValues() []string {
@@ -297,7 +306,7 @@ type Request struct {
 
 func (x *Request) Reset() {
 	*x = Request{}
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[3]
+	mi := &file_ingest_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -309,7 +318,7 @@ func (x *Request) String() string {
 func (*Request) ProtoMessage() {}
 
 func (x *Request) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[3]
+	mi := &file_ingest_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -322,7 +331,7 @@ func (x *Request) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Request.ProtoReflect.Descriptor instead.
 func (*Request) Descriptor() ([]byte, []int) {
-	return file_proto_ingest_v1_ingest_proto_rawDescGZIP(), []int{3}
+	return file_ingest_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Request) GetMethod() string {
@@ -380,7 +389,7 @@ type Response struct {
 
 func (x *Response) Reset() {
 	*x = Response{}
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[4]
+	mi := &file_ingest_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -392,7 +401,7 @@ func (x *Response) String() string {
 func (*Response) ProtoMessage() {}
 
 func (x *Response) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[4]
+	mi := &file_ingest_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -405,7 +414,7 @@ func (x *Response) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Response.ProtoReflect.Descriptor instead.
 func (*Response) Descriptor() ([]byte, []int) {
-	return file_proto_ingest_v1_ingest_proto_rawDescGZIP(), []int{4}
+	return file_ingest_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Response) GetStatusCode() int32 {
@@ -455,7 +464,7 @@ type IngestAck struct {
 
 func (x *IngestAck) Reset() {
 	*x = IngestAck{}
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[5]
+	mi := &file_ingest_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -467,7 +476,7 @@ func (x *IngestAck) String() string {
 func (*IngestAck) ProtoMessage() {}
 
 func (x *IngestAck) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ingest_v1_ingest_proto_msgTypes[5]
+	mi := &file_ingest_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -480,7 +489,7 @@ func (x *IngestAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IngestAck.ProtoReflect.Descriptor instead.
 func (*IngestAck) Descriptor() ([]byte, []int) {
-	return file_proto_ingest_v1_ingest_proto_rawDescGZIP(), []int{5}
+	return file_ingest_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *IngestAck) GetJobId() string {
@@ -511,20 +520,21 @@ func (x *IngestAck) GetRetryable() bool {
 	return false
 }
 
-var File_proto_ingest_v1_ingest_proto protoreflect.FileDescriptor
+var File_ingest_proto protoreflect.FileDescriptor
 
-const file_proto_ingest_v1_ingest_proto_rawDesc = "" +
+const file_ingest_proto_rawDesc = "" +
 	"\n" +
-	"\x1cproto/ingest/v1/ingest.proto\x12\x15apiobserver.ingest.v1\"\xc0\x01\n" +
+	"\fingest.proto\x12\x15apiobserver.ingest.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\x01\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x1e.apiobserver.ingest.v1.JobTypeR\x04type\x128\n" +
 	"\arequest\x18\x03 \x01(\v2\x1e.apiobserver.ingest.v1.RequestR\arequest\x12;\n" +
-	"\bresponse\x18\x04 \x01(\v2\x1f.apiobserver.ingest.v1.ResponseR\bresponse\"A\n" +
+	"\bresponse\x18\x04 \x01(\v2\x1f.apiobserver.ingest.v1.ResponseR\bresponse\"{\n" +
 	"\bMetadata\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x16\n" +
-	"\x06source\x18\x02 \x01(\tR\x06source\"&\n" +
+	"\x06source\x18\x02 \x01(\tR\x06source\x128\n" +
+	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"&\n" +
 	"\fHeaderValues\x12\x16\n" +
 	"\x06values\x18\x01 \x03(\tR\x06values\"\xd3\x02\n" +
 	"\aRequest\x12\x16\n" +
@@ -564,72 +574,74 @@ const file_proto_ingest_v1_ingest_proto_rawDesc = "" +
 	"\x06Ingest\x12\x1a.apiobserver.ingest.v1.Job\x1a .apiobserver.ingest.v1.IngestAck(\x010\x01B'Z%api-observer/proto/ingest/v1;ingestv1b\x06proto3"
 
 var (
-	file_proto_ingest_v1_ingest_proto_rawDescOnce sync.Once
-	file_proto_ingest_v1_ingest_proto_rawDescData []byte
+	file_ingest_proto_rawDescOnce sync.Once
+	file_ingest_proto_rawDescData []byte
 )
 
-func file_proto_ingest_v1_ingest_proto_rawDescGZIP() []byte {
-	file_proto_ingest_v1_ingest_proto_rawDescOnce.Do(func() {
-		file_proto_ingest_v1_ingest_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_ingest_v1_ingest_proto_rawDesc), len(file_proto_ingest_v1_ingest_proto_rawDesc)))
+func file_ingest_proto_rawDescGZIP() []byte {
+	file_ingest_proto_rawDescOnce.Do(func() {
+		file_ingest_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_ingest_proto_rawDesc), len(file_ingest_proto_rawDesc)))
 	})
-	return file_proto_ingest_v1_ingest_proto_rawDescData
+	return file_ingest_proto_rawDescData
 }
 
-var file_proto_ingest_v1_ingest_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_ingest_v1_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
-var file_proto_ingest_v1_ingest_proto_goTypes = []any{
-	(JobType)(0),         // 0: apiobserver.ingest.v1.JobType
-	(IngestStatus)(0),    // 1: apiobserver.ingest.v1.IngestStatus
-	(*Job)(nil),          // 2: apiobserver.ingest.v1.Job
-	(*Metadata)(nil),     // 3: apiobserver.ingest.v1.Metadata
-	(*HeaderValues)(nil), // 4: apiobserver.ingest.v1.HeaderValues
-	(*Request)(nil),      // 5: apiobserver.ingest.v1.Request
-	(*Response)(nil),     // 6: apiobserver.ingest.v1.Response
-	(*IngestAck)(nil),    // 7: apiobserver.ingest.v1.IngestAck
-	nil,                  // 8: apiobserver.ingest.v1.Request.HeadersEntry
-	nil,                  // 9: apiobserver.ingest.v1.Response.HeadersEntry
+var file_ingest_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_ingest_proto_goTypes = []any{
+	(JobType)(0),                  // 0: apiobserver.ingest.v1.JobType
+	(IngestStatus)(0),             // 1: apiobserver.ingest.v1.IngestStatus
+	(*Job)(nil),                   // 2: apiobserver.ingest.v1.Job
+	(*Metadata)(nil),              // 3: apiobserver.ingest.v1.Metadata
+	(*HeaderValues)(nil),          // 4: apiobserver.ingest.v1.HeaderValues
+	(*Request)(nil),               // 5: apiobserver.ingest.v1.Request
+	(*Response)(nil),              // 6: apiobserver.ingest.v1.Response
+	(*IngestAck)(nil),             // 7: apiobserver.ingest.v1.IngestAck
+	nil,                           // 8: apiobserver.ingest.v1.Request.HeadersEntry
+	nil,                           // 9: apiobserver.ingest.v1.Response.HeadersEntry
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
 }
-var file_proto_ingest_v1_ingest_proto_depIdxs = []int32{
+var file_ingest_proto_depIdxs = []int32{
 	0,  // 0: apiobserver.ingest.v1.Job.type:type_name -> apiobserver.ingest.v1.JobType
 	5,  // 1: apiobserver.ingest.v1.Job.request:type_name -> apiobserver.ingest.v1.Request
 	6,  // 2: apiobserver.ingest.v1.Job.response:type_name -> apiobserver.ingest.v1.Response
-	8,  // 3: apiobserver.ingest.v1.Request.headers:type_name -> apiobserver.ingest.v1.Request.HeadersEntry
-	3,  // 4: apiobserver.ingest.v1.Request.metadata:type_name -> apiobserver.ingest.v1.Metadata
-	9,  // 5: apiobserver.ingest.v1.Response.headers:type_name -> apiobserver.ingest.v1.Response.HeadersEntry
-	3,  // 6: apiobserver.ingest.v1.Response.metadata:type_name -> apiobserver.ingest.v1.Metadata
-	1,  // 7: apiobserver.ingest.v1.IngestAck.status:type_name -> apiobserver.ingest.v1.IngestStatus
-	4,  // 8: apiobserver.ingest.v1.Request.HeadersEntry.value:type_name -> apiobserver.ingest.v1.HeaderValues
-	4,  // 9: apiobserver.ingest.v1.Response.HeadersEntry.value:type_name -> apiobserver.ingest.v1.HeaderValues
-	2,  // 10: apiobserver.ingest.v1.IngestService.Ingest:input_type -> apiobserver.ingest.v1.Job
-	7,  // 11: apiobserver.ingest.v1.IngestService.Ingest:output_type -> apiobserver.ingest.v1.IngestAck
-	11, // [11:12] is the sub-list for method output_type
-	10, // [10:11] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	10, // 3: apiobserver.ingest.v1.Metadata.timestamp:type_name -> google.protobuf.Timestamp
+	8,  // 4: apiobserver.ingest.v1.Request.headers:type_name -> apiobserver.ingest.v1.Request.HeadersEntry
+	3,  // 5: apiobserver.ingest.v1.Request.metadata:type_name -> apiobserver.ingest.v1.Metadata
+	9,  // 6: apiobserver.ingest.v1.Response.headers:type_name -> apiobserver.ingest.v1.Response.HeadersEntry
+	3,  // 7: apiobserver.ingest.v1.Response.metadata:type_name -> apiobserver.ingest.v1.Metadata
+	1,  // 8: apiobserver.ingest.v1.IngestAck.status:type_name -> apiobserver.ingest.v1.IngestStatus
+	4,  // 9: apiobserver.ingest.v1.Request.HeadersEntry.value:type_name -> apiobserver.ingest.v1.HeaderValues
+	4,  // 10: apiobserver.ingest.v1.Response.HeadersEntry.value:type_name -> apiobserver.ingest.v1.HeaderValues
+	2,  // 11: apiobserver.ingest.v1.IngestService.Ingest:input_type -> apiobserver.ingest.v1.Job
+	7,  // 12: apiobserver.ingest.v1.IngestService.Ingest:output_type -> apiobserver.ingest.v1.IngestAck
+	12, // [12:13] is the sub-list for method output_type
+	11, // [11:12] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
-func init() { file_proto_ingest_v1_ingest_proto_init() }
-func file_proto_ingest_v1_ingest_proto_init() {
-	if File_proto_ingest_v1_ingest_proto != nil {
+func init() { file_ingest_proto_init() }
+func file_ingest_proto_init() {
+	if File_ingest_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_ingest_v1_ingest_proto_rawDesc), len(file_proto_ingest_v1_ingest_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingest_proto_rawDesc), len(file_ingest_proto_rawDesc)),
 			NumEnums:      2,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_ingest_v1_ingest_proto_goTypes,
-		DependencyIndexes: file_proto_ingest_v1_ingest_proto_depIdxs,
-		EnumInfos:         file_proto_ingest_v1_ingest_proto_enumTypes,
-		MessageInfos:      file_proto_ingest_v1_ingest_proto_msgTypes,
+		GoTypes:           file_ingest_proto_goTypes,
+		DependencyIndexes: file_ingest_proto_depIdxs,
+		EnumInfos:         file_ingest_proto_enumTypes,
+		MessageInfos:      file_ingest_proto_msgTypes,
 	}.Build()
-	File_proto_ingest_v1_ingest_proto = out.File
-	file_proto_ingest_v1_ingest_proto_goTypes = nil
-	file_proto_ingest_v1_ingest_proto_depIdxs = nil
+	File_ingest_proto = out.File
+	file_ingest_proto_goTypes = nil
+	file_ingest_proto_depIdxs = nil
 }

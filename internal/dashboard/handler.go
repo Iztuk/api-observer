@@ -1,3 +1,4 @@
+// Package dashboard handles all the frontend calls
 package dashboard
 
 import (
@@ -19,6 +20,7 @@ func NewHandler(rs *audit.RuleSet) *Handler {
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /", h.ExplorerPage)
+	mux.HandleFunc("GET /logs", h.ExplorerLogs)
 
 	mux.HandleFunc("GET /rules", h.RulesPage)
 	mux.HandleFunc("GET /rules/import", h.RulesImportPage)

@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"api-observer/internal/audit"
+	"api-observer/internal/nodes"
 	ingestv1 "api-observer/proto/ingest/v1"
 
 	"google.golang.org/grpc/codes"
@@ -15,7 +16,8 @@ import (
 type Server struct {
 	ingestv1.UnimplementedIngestServiceServer
 
-	queue *audit.Queue
+	queue            *audit.Queue
+	collectorManager *nodes.NodeManager
 }
 
 func NewServer(queue *audit.Queue) *Server {

@@ -6,7 +6,6 @@ require (
 	github.com/a-h/templ v0.3.1020
 	github.com/corazawaf/libinjection-go v0.3.3
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.3
 	github.com/spf13/cobra v1.10.2
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
