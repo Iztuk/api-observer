@@ -1,5 +1,5 @@
 /*
-Copyright © 2026 NAME HERE <EMAIL ADDRESS>
+Copyright © 2026 John Kutz <johnandrew.kutz@gmail.com>
 */
 package cmd
 

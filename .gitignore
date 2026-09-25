@@ -47,6 +47,3 @@ node_modules
 
 # Generated JS files
 internal/dashboard/views/assets/js/*
-
-# Executable
-api-observer

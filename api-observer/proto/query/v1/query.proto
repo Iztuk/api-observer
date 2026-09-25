@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package apiobserver.query.v1;
+
+option go_package = "api-observer/proto/query/v1;queryv1";
+
+import "google/protobuf/timestamp.proto";
+
+service LogService {
+  rpc Query(LogParams) returns (stream Log);
+}
+
+message LogParams {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp end_date = 2;
+
+  int64 cursor = 3;
+}
+
+message Log {
+  string id = 1;
+
+  oneof event {
+    Request request = 2;
+    Response response = 3;
+  }
+}
+
+enum LogType {
+  LOG_TYPE_UNSPECIFIED = 0;
+  LOG_TYPE_REQUEST = 1;
+  LOG_TYPE_RESPONSE = 2;
+}
+
+message Metadata {
+  string request_id = 1;
+  string source = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+message HeaderValues {
+  repeated string values = 1;
+}
+
+message Request {
+  string method = 1;
+  string url = 2;
+  map<string, HeaderValues> headers = 3;
+  string body = 4;
+  int64 content_length = 5;
+  Metadata metadata = 6;
+}
+
+message Response {
+  int32 status_code = 1;
+  map<string, HeaderValues> headers = 2;
+  string body = 3;
+  int64 content_length = 4;
+  Metadata metadata = 5;
+}
