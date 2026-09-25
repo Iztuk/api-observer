@@ -21,6 +21,8 @@ type Config struct {
 	WorkerCount   int    `yaml:"worker_count"`
 
 	Nodes []NodeConfig `yaml:"nodes"`
+
+	FilePath string `yaml:"-"`
 }
 
 type NodeConfig struct {
@@ -28,13 +30,13 @@ type NodeConfig struct {
 	Addr string `yaml:"addr"`
 }
 
-func LoadConfigurationFile() (Config, error) {
+func LoadConfigurationFile() (*Config, error) {
 	cfgFilePath := os.Getenv("API_OBSERVER_CONFIG")
 
 	if cfgFilePath == "" {
 		cfgDir, err := os.UserConfigDir()
 		if err != nil {
-			return Config{}, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"could not find config directory: %w",
 				err,
 			)
@@ -59,12 +61,12 @@ func LoadConfigurationFile() (Config, error) {
 		case errors.Is(err, os.ErrNotExist):
 			c, err := DefaultConfig()
 			if err != nil {
-				return Config{}, fmt.Errorf("%s", err.Error())
+				return nil, fmt.Errorf("%s", err.Error())
 			}
 			cfg = c
 
 			if err := cfg.Validate(); err != nil {
-				return Config{}, fmt.Errorf(
+				return nil, fmt.Errorf(
 					"invalid default configuration: %w",
 					err,
 				)
@@ -75,7 +77,7 @@ func LoadConfigurationFile() (Config, error) {
 				cfgFilePath,
 				cfg,
 			); err != nil {
-				return Config{}, fmt.Errorf(
+				return nil, fmt.Errorf(
 					"could not create default configuration: %w",
 					err,
 				)
@@ -84,7 +86,7 @@ func LoadConfigurationFile() (Config, error) {
 			return cfg, nil
 
 		default:
-			return Config{}, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"could not load config file %q: %w",
 				cfgFilePath,
 				err,
@@ -94,20 +96,115 @@ func LoadConfigurationFile() (Config, error) {
 
 	cfg, err := loadConfiguration(cfgFilePath)
 	if err != nil {
-		return Config{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"could not load config file %q: %w",
 			cfgFilePath,
 			err,
 		)
 	}
+	cfg.FilePath = cfgFilePath
 
 	return cfg, nil
 }
 
-func DefaultConfig() (Config, error) {
+func SaveConfigurationFile(cfg *Config) error {
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf(
+			"invalid configuration: %w",
+			err,
+		)
+	}
+
+	cfgDir := filepath.Dir(cfg.FilePath)
+
+	if err := os.MkdirAll(
+		cfgDir,
+		0o700,
+	); err != nil {
+		return fmt.Errorf(
+			"failed to create config directory %q: %w",
+			cfgDir,
+			err,
+		)
+	}
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf(
+			"failed to encode configuration: %w",
+			err,
+		)
+	}
+
+	tempFile, err := os.CreateTemp(
+		cfgDir,
+		".config-*.yaml",
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"failed to create temporary config file: %w",
+			err,
+		)
+	}
+
+	tempPath := tempFile.Name()
+
+	// If anything fails before the rename, clean up
+	// the temporary file.
+	defer os.Remove(tempPath)
+
+	if err := tempFile.Chmod(0o600); err != nil {
+		tempFile.Close()
+
+		return fmt.Errorf(
+			"failed to set temporary config permissions: %w",
+			err,
+		)
+	}
+
+	if _, err := tempFile.Write(data); err != nil {
+		tempFile.Close()
+
+		return fmt.Errorf(
+			"failed to write configuration: %w",
+			err,
+		)
+	}
+
+	if err := tempFile.Sync(); err != nil {
+		tempFile.Close()
+
+		return fmt.Errorf(
+			"failed to sync configuration: %w",
+			err,
+		)
+	}
+
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf(
+			"failed to close temporary config file: %w",
+			err,
+		)
+	}
+
+	if err := os.Rename(
+		tempPath,
+		cfg.FilePath,
+	); err != nil {
+		return fmt.Errorf(
+			"failed to replace config file %q: %w",
+			cfg.FilePath,
+			err,
+		)
+	}
+
+	return nil
+}
+
+func DefaultConfig() (*Config, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return Config{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"failed to get user config directory: %w",
 			err,
 		)
@@ -116,13 +213,13 @@ func DefaultConfig() (Config, error) {
 	appDir := filepath.Join(configDir, "api-observer")
 
 	if err := os.MkdirAll(appDir, 0o700); err != nil {
-		return Config{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"failed to create application config directory: %w",
 			err,
 		)
 	}
 
-	return Config{
+	return &Config{
 		AppLog: filepath.Join(
 			appDir,
 			"logs",
@@ -149,26 +246,26 @@ func DefaultConfig() (Config, error) {
 	}, nil
 }
 
-func loadConfiguration(path string) (Config, error) {
-	var cfg Config
+func loadConfiguration(path string) (*Config, error) {
+	var cfg *Config
 
 	file, err := os.Open(path)
 	if err != nil {
-		return Config{}, err
+		return nil, err
 	}
 	defer file.Close()
 
 	decoder := yaml.NewDecoder(file)
 
 	if err := decoder.Decode(&cfg); err != nil {
-		return Config{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"failed to decode config file: %w",
 			err,
 		)
 	}
 
 	if err := cfg.Validate(); err != nil {
-		return Config{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"invalid configuration: %w",
 			err,
 		)
@@ -180,7 +277,7 @@ func loadConfiguration(path string) (Config, error) {
 func writeDefaultConfiguration(
 	configDir string,
 	configPath string,
-	cfg Config,
+	cfg *Config,
 ) error {
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		return fmt.Errorf(

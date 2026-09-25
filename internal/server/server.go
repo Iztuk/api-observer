@@ -137,7 +137,7 @@ func RunServer(ctx context.Context, background bool) error {
 		}
 	}
 
-	dashboardHandler := dashboard.NewHandler(rs, nm)
+	dashboardHandler := dashboard.NewHandler(rs, nm, cfg)
 	dashboardHandler.RegisterRoutes(mux)
 
 	httpServer := &http.Server{

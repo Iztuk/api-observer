@@ -3,21 +3,22 @@ package dashboard
 
 import (
 	"api-observer/internal/audit"
-	"api-observer/internal/dashboard/views/utils"
+	"api-observer/internal/config"
 	"api-observer/internal/nodes"
-	"log"
 	"net/http"
 )
 
 type Handler struct {
 	RuleSet *audit.RuleSet
 	Nodes   *nodes.NodeManager
+	Config  *config.Config
 }
 
-func NewHandler(rs *audit.RuleSet, nm *nodes.NodeManager) *Handler {
+func NewHandler(rs *audit.RuleSet, nm *nodes.NodeManager, cfg *config.Config) *Handler {
 	return &Handler{
 		RuleSet: rs,
 		Nodes:   nm,
+		Config:  cfg,
 	}
 }
 
@@ -31,23 +32,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /nodes", h.NodesPage)
 	mux.HandleFunc("GET /nodes/list", h.NodesList)
-	mux.HandleFunc("GET /nodes/delete-modal", h.DeleteNodeModal)
 
 	mux.HandleFunc("POST /nodes", h.AddNode)
-	mux.HandleFunc("POST /nodes/delete", h.DeleteNode)
-}
-
-func renderToast(
-	w http.ResponseWriter,
-	r *http.Request,
-	httpStatus int,
-	message string,
-	status string,
-) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(httpStatus)
-
-	if err := utils.Toast(message, status).Render(r.Context(), w); err != nil {
-		log.Printf("failed to render toast: %v", err)
-	}
+	mux.HandleFunc("DELETE /nodes", h.DeleteNode)
 }

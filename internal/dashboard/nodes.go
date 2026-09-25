@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"api-observer/internal/config"
 	nodespage "api-observer/internal/dashboard/views/nodes-page"
 	"api-observer/internal/nodes"
 	"fmt"
@@ -9,45 +10,17 @@ import (
 )
 
 func (h *Handler) NodesPage(w http.ResponseWriter, r *http.Request) {
-	if err := nodespage.NodesPage(
-		"Nodes",
-		h.Nodes.List(),
-	).Render(r.Context(), w); err != nil {
-		http.Error(
-			w,
-			err.Error(),
-			http.StatusInternalServerError,
-		)
+	if err := nodespage.NodesPage("Nodes", h.Nodes.List()).Render(r.Context(), w); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
 func (h *Handler) NodesList(w http.ResponseWriter, r *http.Request) {
-	if err := nodespage.NodesWorkspace(
+	if err := nodespage.NodesList(
 		h.Nodes.List(),
 	).Render(r.Context(), w); err != nil {
-		renderToast(
-			w,
-			r,
-			http.StatusInternalServerError,
-			"failed to render node list",
-			"error",
-		)
-		return
-	}
-}
-
-func (h *Handler) DeleteNodeModal(w http.ResponseWriter, r *http.Request) {
-	if err := nodespage.DeleteNodeModal(
-		h.Nodes.List(),
-	).Render(r.Context(), w); err != nil {
-		renderToast(
-			w,
-			r,
-			http.StatusInternalServerError,
-			"failed to render delete node modal",
-			"error",
-		)
+		http.Error(w, "failed to render node list", http.StatusInternalServerError)
 		return
 	}
 }
@@ -64,33 +37,32 @@ func (h *Handler) AddNode(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if found {
-		renderToast(
-			w,
-			r,
-			http.StatusConflict,
-			fmt.Sprintf("node '%s' already exists", name),
-			"warning",
-		)
+		http.Error(w, fmt.Sprintf("node '%s' already exists", name), http.StatusConflict)
 		return
 	}
 
 	if err := h.Nodes.Add(name, addr); err != nil {
-		renderToast(
-			w,
-			r,
-			http.StatusInternalServerError,
-			"failed to add node",
-			"error",
-		)
+		http.Error(w, "failed to add node", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("HX-Trigger", "nodesChanged")
-	w.WriteHeader(http.StatusNoContent)
+	h.Config.Nodes = convertNodesToConfigNodes(h.Nodes.List())
+	if err := config.SaveConfigurationFile(h.Config); err != nil {
+		http.Error(w, "failed to save changes", http.StatusInternalServerError)
+		h.Nodes.Remove(name)
+		return
+	}
+
+	if err := nodespage.NodesList(
+		h.Nodes.List(),
+	).Render(r.Context(), w); err != nil {
+		http.Error(w, "failed to render node list", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) DeleteNode(w http.ResponseWriter, r *http.Request) {
-	name := r.FormValue("id")
+	name := r.FormValue("name")
 
 	found := slices.ContainsFunc(
 		h.Nodes.List(),
@@ -100,30 +72,40 @@ func (h *Handler) DeleteNode(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if !found {
-		renderToast(
-			w,
-			r,
-			http.StatusNotFound,
-			fmt.Sprintf("node '%s' not found", name),
-			"warning",
-		)
+		http.Error(w, fmt.Sprintf("node '%s' not found", name), http.StatusNotFound)
 		return
 	}
 
 	if err := h.Nodes.Remove(name); err != nil {
-		renderToast(
-			w,
-			r,
-			http.StatusInternalServerError,
-			fmt.Sprintf(
-				"failed to remove node '%s'",
-				name,
-			),
-			"error",
-		)
+		http.Error(w, fmt.Sprintf("failed to remove node '%s'", name), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("HX-Trigger", "nodesChanged")
-	w.WriteHeader(http.StatusNoContent)
+	h.Config.Nodes = convertNodesToConfigNodes(h.Nodes.List())
+	if err := config.SaveConfigurationFile(h.Config); err != nil {
+		http.Error(w, "failed to save changes", http.StatusInternalServerError)
+		h.Nodes.Remove(name)
+		return
+	}
+
+	if err := nodespage.NodesList(
+		h.Nodes.List(),
+	).Render(r.Context(), w); err != nil {
+		http.Error(w, "failed to render node list", http.StatusInternalServerError)
+		return
+	}
+}
+
+func convertNodesToConfigNodes(nodes []*nodes.Node) []config.NodeConfig {
+	result := make([]config.NodeConfig, 0)
+
+	for _, node := range nodes {
+		cn := config.NodeConfig{
+			Name: node.Name,
+			Addr: node.Addr,
+		}
+		result = append(result, cn)
+	}
+
+	return result
 }

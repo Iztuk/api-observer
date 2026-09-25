@@ -63,13 +63,7 @@ func (h *Handler) RulesImportTranslate(
 	var req TranslateImportRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		renderToast(
-			w,
-			r,
-			http.StatusBadRequest,
-			"Invalid JSON body",
-			"error",
-		)
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
 		return
 	}
 
@@ -78,52 +72,28 @@ func (h *Handler) RulesImportTranslate(
 		// Separate the source into individual SecRule directives.
 		rawRules, err := crs.SplitSecRules(req.Source)
 		if err != nil {
-			renderToast(
-				w,
-				r,
-				http.StatusBadRequest,
-				err.Error(),
-				"error",
-			)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		// Parse the directives into CRS rules.
 		crsRules, err := crs.ParseRules(rawRules)
 		if err != nil {
-			renderToast(
-				w,
-				r,
-				http.StatusBadRequest,
-				err.Error(),
-				"error",
-			)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		// Translate all rules, including chains and warnings.
 		results, err := crs.TranslateRules(crsRules)
 		if err != nil {
-			renderToast(
-				w,
-				r,
-				http.StatusBadRequest,
-				err.Error(),
-				"error",
-			)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		// Serialize the translation results.
 		data, err := results.RuleSetYAML()
 		if err != nil {
-			renderToast(
-				w,
-				r,
-				http.StatusInternalServerError,
-				"Failed to serialize translation results",
-				"error",
-			)
+			http.Error(w, "failed to serialize translation results", http.StatusInternalServerError)
 			return
 		}
 
@@ -132,13 +102,7 @@ func (h *Handler) RulesImportTranslate(
 		return
 
 	default:
-		renderToast(
-			w,
-			r,
-			http.StatusBadRequest,
-			fmt.Sprintf("Unsupported import type: %s", req.Type),
-			"error",
-		)
+		http.Error(w, fmt.Sprintf("Unsupported import type: %s", req.Type), http.StatusBadRequest)
 		return
 	}
 }

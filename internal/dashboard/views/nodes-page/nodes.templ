@@ -9,7 +9,14 @@ import (
 templ NodesPage(title string, nodes []*nodes.Node) {
 	@views.Layout(title) {
 		<link rel="stylesheet" href="/static/css/nodes.css"/>
+
 		@NodesPageContent(nodes)
+
+		@AddNodeModal()
+		@DeleteNodeModal()
+
+		@FormValidationScript()
+		@DeleteNodeModalScript()
 	}
 }
 
@@ -17,236 +24,321 @@ templ NodesPageContent(nodes []*nodes.Node) {
 	<div class="nodes-page">
 		<header class="nodes-page-header">
 			<h2>Nodes</h2>
-			<p>Review the nodes registered to API Observer</p>
+
+			<p>
+				Review the nodes registered to API Observer
+			</p>
 		</header>
 
 		<section class="nodes-section nodes-actions">
 			<button
 				type="button"
-				onclick="document.getElementById('add-node-modal').showModal()"
+				onclick="document.getElementById('addNodeModal').showModal()"
 			>
 				Add Node
 			</button>
 
 			<button
 				type="button"
-				onclick="document.getElementById('delete-node-modal').showModal()"
+				onclick="
+					populateDeleteNodeDropdown();
+					document.getElementById('deleteNodeModal').showModal();
+				"
 			>
 				Delete Node
 			</button>
 		</section>
 
-		<section class="nodes-section nodes-content">
-			<div
-				id="nodes-workspace"
-				class="nodes-workspace"
-				hx-get="/nodes/list"
-				hx-trigger="nodesChanged from:body"
-				hx-swap="innerHTML"
-			>
-				@NodesWorkspace(nodes)
-			</div>
-		</section>
-
-		@AddNodeModal()
-
-		<div
-			id="delete-node-modal-container"
-			hx-get="/nodes/delete-modal"
-			hx-trigger="nodesChanged from:body"
-			hx-swap="innerHTML"
+		<section
+			id="nodes-section"
+			class="nodes-section"
 		>
-			@DeleteNodeModal(nodes)
-		</div>
-	</div>
-}
-
-templ NodesWorkspace(nodes []*nodes.Node) {
-	<div class="nodes-workspace-content">
-		<div class="nodes-list-header">
-			<h3>Registered Nodes</h3>
-
-			<span class="nodes-count">
-				{ fmt.Sprintf("%d nodes", len(nodes)) }
-			</span>
-		</div>
-
-		@NodesList(nodes)
+			@NodesList(nodes)
+		</section>
 	</div>
 }
 
 templ NodesList(nodes []*nodes.Node) {
-	<div class="nodes-list">
-		if len(nodes) == 0 {
-			<div class="nodes-empty">
-				<p>No nodes registered.</p>
-			</div>
-		} else {
-			for _, node := range nodes {
-				<div class="nodes-list-item">
-					<div class="nodes-list-info">
-						<h4>{ node.Name }</h4>
-						<p>{ node.Addr }</p>
-					</div>
+	<div class="nodes-list-header">
+		<h3>Registered Nodes</h3>
+
+		<span class="rules-count">
+			{ fmt.Sprintf("%d nodes", len(nodes)) }
+		</span>
+	</div>
+
+	<div
+		class="nodes-workspace"
+		id="nodes-workspace"
+	>
+		<div
+			id="nodes-list"
+			class="nodes-list"
+		>
+			if len(nodes) == 0 {
+				<div class="nodes-empty">
+					<p>
+						No nodes currently registered.
+					</p>
 				</div>
+			} else {
+				for _, node := range nodes {
+					<div data-node-name={ node.Name }>
+						<p>
+							{ node.Name }
+						</p>
+
+						<p class="node-addr">
+							{ node.Addr }
+						</p>
+					</div>
+				}
 			}
-		}
+		</div>
 	</div>
 }
 
 templ AddNodeModal() {
 	<dialog
-		id="add-node-modal"
-		class="nodes-modal"
+		id="addNodeModal"
+		class="modal"
 	>
-		<div class="nodes-modal-content">
-			<div class="nodes-modal-header">
-				<h3>Add Node</h3>
+		<form
+			id="add-node-form"
+			class="modal-form"
+			data-validate-form
+			hx-post="/nodes"
+			hx-target="#nodes-section"
+			hx-swap="innerHTML"
+			hx-on::after:request="
+				document.getElementById('addNodeModal').close();
+			"
+		>
+			<header>
+				<h2>Add Node</h2>
+			</header>
+
+			<div class="modal-form-field">
+				<label for="add-node-name">
+					Name
+				</label>
+
+				<input
+					type="text"
+					name="name"
+					id="add-node-name"
+					required
+				/>
+			</div>
+
+			<div class="modal-form-field">
+				<label for="add-node-addr">
+					Address
+				</label>
+
+				<input
+					type="text"
+					name="addr"
+					id="add-node-addr"
+					required
+				/>
+			</div>
+
+			<div>
+				<button
+					type="submit"
+					data-submit-button
+					disabled
+				>
+					Add
+				</button>
 
 				<button
 					type="button"
-					class="nodes-modal-close"
-					aria-label="Close add node modal"
-					onclick="document.getElementById('add-node-modal').close()"
+					onclick="document.getElementById('addNodeModal').close()"
 				>
-					&times;
+					Cancel
 				</button>
 			</div>
-
-			<form
-				class="nodes-form"
-				hx-post="/nodes"
-				hx-swap="none"
-				hx-on::after-request="
-					if (event.detail.successful) {
-						this.reset();
-						document.getElementById('add-node-modal').close();
-					}
-				"
-			>
-				<div class="nodes-form-field">
-					<label for="node-name">
-						Name
-					</label>
-
-					<input
-						id="node-name"
-						name="name"
-						type="text"
-						placeholder="node-01"
-						required
-					/>
-				</div>
-
-				<div class="nodes-form-field">
-					<label for="node-address">
-						Address
-					</label>
-
-					<input
-						id="node-address"
-						name="addr"
-						type="text"
-						placeholder="192.168.1.20:50051"
-						required
-					/>
-				</div>
-
-				<div class="nodes-modal-actions">
-					<button
-						type="button"
-						class="nodes-button-secondary"
-						onclick="document.getElementById('add-node-modal').close()"
-					>
-						Cancel
-					</button>
-
-					<button
-						type="submit"
-						class="nodes-button-primary"
-					>
-						Add Node
-					</button>
-				</div>
-			</form>
-		</div>
+		</form>
 	</dialog>
 }
 
-templ DeleteNodeModal(nodes []*nodes.Node) {
+templ DeleteNodeModal() {
 	<dialog
-		id="delete-node-modal"
-		class="nodes-modal"
+		id="deleteNodeModal"
+		class="modal"
 	>
-		<div class="nodes-modal-content">
-			<div class="nodes-modal-header">
-				<h3>Delete Node</h3>
+		<form
+			id="delete-node-form"
+			class="modal-form"
+			data-validate-form
+			hx-delete="/nodes"
+			hx-target="#nodes-section"
+			hx-swap="innerHTML"
+			hx-on::after:request="
+				document.getElementById('deleteNodeModal').close();
+			"
+		>
+			<header>
+				<h2>Delete Node</h2>
+			</header>
+
+			<div class="modal-form-field">
+				<label for="delete-node-dropdown">
+					Node
+				</label>
+
+				<select
+					name="name"
+					id="delete-node-dropdown"
+					required
+				>
+					<option value="">
+						Select Node
+					</option>
+				</select>
+			</div>
+
+			<div>
+				<button
+					type="submit"
+					data-submit-button
+					disabled
+				>
+					Delete
+				</button>
 
 				<button
 					type="button"
-					class="nodes-modal-close"
-					aria-label="Close delete node modal"
-					onclick="document.getElementById('delete-node-modal').close()"
+					onclick="document.getElementById('deleteNodeModal').close()"
 				>
-					&times;
+					Cancel
 				</button>
 			</div>
-
-			<form
-				class="nodes-form"
-				hx-post="/nodes/delete"
-				hx-swap="none"
-				hx-on::after-request="
-					if (event.detail.successful) {
-						document.getElementById('delete-node-modal').close();
-					}
-				"
-			>
-				<div class="nodes-form-field">
-					<label for="delete-node-name">
-						Node
-					</label>
-
-					<select
-						id="delete-node-name"
-						name="name"
-						required
-						disabled?={ len(nodes) == 0 }
-					>
-						<option value="">
-							Select a node
-						</option>
-
-						for _, node := range nodes {
-							<option value={ node.Name }>
-								{ node.Name }
-							</option>
-						}
-					</select>
-				</div>
-
-				<p class="nodes-delete-warning">
-					This will remove the selected node from API Observer.
-				</p>
-
-				<div class="nodes-modal-actions">
-					<button
-						type="button"
-						class="nodes-button-secondary"
-						onclick="document.getElementById('delete-node-modal').close()"
-					>
-						Cancel
-					</button>
-
-					<button
-						type="submit"
-						class="nodes-button-danger"
-						disabled?={ len(nodes) == 0 }
-					>
-						Delete Node
-					</button>
-				</div>
-			</form>
-		</div>
+		</form>
 	</dialog>
+}
+
+templ FormValidationScript() {
+	<script>
+		(() => {
+			const forms = document.querySelectorAll(
+				"[data-validate-form]"
+			);
+
+			forms.forEach((form) => {
+				const submitButton = form.querySelector(
+					"[data-submit-button]"
+				);
+
+				if (!submitButton) {
+					return;
+				}
+
+				const checkValidity = () => {
+					submitButton.disabled = !form.checkValidity();
+				};
+
+				form.addEventListener(
+					"input",
+					checkValidity,
+				);
+
+				form.addEventListener(
+					"change",
+					checkValidity,
+				);
+
+				form.addEventListener(
+					"reset",
+					() => {
+						requestAnimationFrame(
+							checkValidity
+						);
+					},
+				);
+
+				checkValidity();
+			});
+		})();
+	</script>
+}
+
+templ DeleteNodeModalScript() {
+	<script>
+		function populateDeleteNodeDropdown() {
+			const nodesList = document.getElementById(
+				"nodes-list"
+			);
+
+			const dropdown = document.getElementById(
+				"delete-node-dropdown"
+			);
+
+			if (!nodesList || !dropdown) {
+				return;
+			}
+
+			/*
+				Clear any nodes that were previously added to
+				the dropdown.
+
+				This prevents duplicates every time the modal
+				is opened.
+			*/
+			dropdown.innerHTML = "";
+
+			const placeholder = document.createElement(
+				"option"
+			);
+
+			placeholder.value = "";
+			placeholder.textContent = "Select Node";
+
+			dropdown.append(placeholder);
+
+			/*
+				Read the current node list.
+
+				This is important because #nodes-list may have
+				been replaced by HTMX since the last time the
+				dialog was opened.
+			*/
+			const nodes = nodesList.querySelectorAll(
+				"[data-node-name]"
+			);
+
+			nodes.forEach((node) => {
+				const name = node.dataset.nodeName;
+
+				if (!name) {
+					return;
+				}
+
+				const option = document.createElement(
+					"option"
+				);
+
+				option.value = name;
+				option.textContent = name;
+
+				dropdown.append(option);
+			});
+
+			/*
+				The dropdown may have changed from a valid
+				value back to the empty placeholder, so fire
+				a change event to update form validation.
+			*/
+			dropdown.dispatchEvent(
+				new Event(
+					"change",
+					{
+						bubbles: true,
+					},
+				),
+			);
+		}
+	</script>
 }
